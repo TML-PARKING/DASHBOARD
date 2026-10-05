@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Dashboard Ops - Connecteur",
+  "version": "1.0.0",
+  "description": "Recupere les donnees des sites ou tu es connecte et les envoie a ton Dashboard Ops. Tout reste sur ce PC.",
+  "permissions": ["storage", "scripting", "tabs", "alarms", "background"],
+  "optional_host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "https://*.github.io/*",
+    "https://*.netlify.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://*.github.io/*", "https://*.netlify.app/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Dashboard Ops - Connecteur" }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+:root{--bg:#fff;--ink:#1c2330;--muted:#6b7380;--line:#e3e6eb;--accent:#2563eb;--bad:#d93636;--soft:#f4f5f7}
+@media (prefers-color-scheme:dark){:root{--bg:#181c24;--ink:#e7eaf0;--muted:#8b93a1;--line:#2a303b;--accent:#5b8cff;--bad:#ff6b6b;--soft:#0f1218}}
+*{box-sizing:border-box}
+body{margin:0;width:390px;max-height:580px;overflow-y:auto;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,"Segoe UI",sans-serif}
+header{padding:12px 14px;border-bottom:1px solid var(--line)}
+header b{font-size:14px}header div{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+section{padding:10px 14px;border-bottom:1px solid var(--line)}
+h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:3px 8px;font-size:12px}
+input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink)}
+.item{padding:8px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:none}
+.row{display:flex;align-items:center;gap:6px}.row .grow{flex:1;min-width:0}
+.path{font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muted{color:var(--muted);font-size:12px}.err{color:var(--bad);font-size:12px}
+.form{margin-top:6px;padding:8px;background:var(--soft);border-radius:8px;display:none}
+.form.open{display:block}.form input[type=text]{width:100%;margin-bottom:6px}
+p{margin:4px 0}
+</style>
+</head>
+<body>
+<header><b>Dashboard Ops - Connecteur</b><div id="site"></div></header>
+<section id="dash"></section>
+<section id="cap"></section>
+<section id="rules"></section>
+<section id="sites"></section>
+<script src="popup.js"></script>
+</body>
+</html>

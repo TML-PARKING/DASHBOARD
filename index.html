@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<title>Dashboard Ops</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2330;--muted:#6b7380;--line:#e3e6eb;--accent:#2563eb;--bad:#d93636;--bad-bg:#fdecec;--ok:#16a34a;--warn:#b45309;--warn-bg:#fff4e0}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c24;--ink:#e7eaf0;--muted:#8b93a1;--line:#2a303b;--accent:#5b8cff;--bad:#ff6b6b;--bad-bg:#3a1d1f;--ok:#3fcf73;--warn:#f0b35a;--warn-bg:#3a2e1a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:4px 9px;font-size:12px}
+#banner{display:none;margin:10px 16px 0;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:13px;align-items:center;gap:10px}
+#banner.show{display:flex}#banner span{flex:1}
+#sources{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px 0}
+.src{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.src.err{color:var(--bad);border-color:var(--bad);cursor:pointer}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:12px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative;min-width:0}
+.card.wide{grid-column:1/-1}.card.medium{grid-column:span 2}
+@media (max-width:520px){#grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:10px 10px 30px}.card{padding:12px}.card.medium,.card.wide,.t-table,.t-list,.t-bar{grid-column:1/-1}.kpi{font-size:28px}header{padding:10px 12px;gap:8px}header h1{font-size:15px}#sources{padding:8px 10px 0}.live{display:none}}
+.card h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;padding-right:26px}
+.card .edit{position:absolute;top:8px;right:8px;border:none;padding:4px 7px;color:var(--muted);background:none}
+.kpi{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.card.alert{border-color:var(--bad);background:var(--bad-bg)}.card.alert .kpi{color:var(--bad)}
+.tablewrap{overflow-x:auto;max-height:520px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--card)}
+tr.hl td{color:var(--bad);font-weight:600}
+.bar{display:grid;grid-template-columns:minmax(60px,110px) 1fr 50px;align-items:center;gap:8px;margin:5px 0;font-size:13px}
+.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar i{display:block;height:10px;border-radius:5px;background:var(--accent);min-width:2px}
+.bar b{text-align:right;font-variant-numeric:tabular-nums}
+.li{padding:7px 0;border-bottom:1px solid var(--line)}.li:last-child{border:none}
+.li .l1{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .l2{color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:8px}
+.li .l2 span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .l2 span:last-child{white-space:nowrap}
+.empty{color:var(--muted);font-size:13px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(560px,94vw);max-height:90vh;padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 6px}
+dialog h4{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+dialog label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+dialog input,dialog select,dialog textarea{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+dialog textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:110px}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;word-break:break-all;user-select:all}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+.actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}.actions .sp{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips label{margin:0;display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
+.chips input,.check input{width:auto}
+.check{display:flex!important;align-items:center;gap:6px;color:var(--ink)!important}
+.srcitem{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.srcitem div{flex:1;min-width:0}.srcitem small{color:var(--muted);display:block}
+.off{opacity:.5}
+pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:60vh;overflow:auto;background:var(--bg);padding:10px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="appTitle">Dashboard Ops</h1>
+  <div class="live" title="Sources rafraichies automatiquement"><span class="dot"></span><span id="clock"></span></div>
+  <button onclick="openEditor()">+ Widget</button>
+  <button onclick="openSettings()" title="Reglages">&#9881;</button>
+</header>
+<div id="banner"><span id="bannerTxt"></span><button class="small primary" id="bannerBtn"></button></div>
+<div id="sources"></div>
+<div id="grid"></div>
+
+<!-- Cle d'acces -->
+<dialog id="dlgKey">
+  <h3>Cle d'acces</h3>
+  <p class="hint">La cle definie dans Netlify (variable APP_KEY). Elle reste memorisee sur cet appareil.</p>
+  <label>Cle</label><input id="keyInput" type="password" autocomplete="current-password">
+  <p class="hint" id="keyErr" style="color:var(--bad)"></p>
+  <div class="actions"><span class="sp"></span><button class="primary" onclick="saveKey()">Valider</button></div>
+</dialog>
+
+<!-- Widget -->
+<dialog id="dlgW">
+  <h3 id="wTitle">Widget</h3>
+  <label>Titre</label><input id="f_title">
+  <div class="row">
+    <div><label>Type</label>
+      <select id="f_type" onchange="syncForm()">
+        <option value="kpi">Chiffre cle</option><option value="table">Tableau</option>
+        <option value="bar">Barres (regroupement)</option><option value="list">Liste (mails, evenements)</option>
+      </select></div>
+    <div><label>Taille</label>
+      <select id="f_size"><option value="">Petite</option><option value="medium">Moyenne</option><option value="wide">Pleine largeur</option></select></div>
+  </div>
+  <div class="row">
+    <div><label>Source</label><select id="f_source" onchange="fillDatasets()"></select></div>
+    <div><label>Donnees</label><select id="f_dataset" onchange="fillFields()"></select></div>
+  </div>
+  <div data-for="kpi bar"><div class="row">
+    <div><label>Calcul</label><select id="f_op"><option value="count">Nombre de lignes</option><option value="sum">Somme</option><option value="avg">Moyenne</option><option value="max">Max</option><option value="min">Min</option></select></div>
+    <div><label>Champ</label><select id="f_field"></select></div>
+  </div></div>
+  <div data-for="bar"><label>Regrouper par</label><select id="f_group"></select></div>
+  <div data-for="kpi table bar list"><div class="row">
+    <div><label>Filtre : champ</label><select id="f_wf"></select></div>
+    <div><label>= valeur</label><input id="f_wv" placeholder="vide = pas de filtre"></div>
+  </div></div>
+  <div data-for="table"><div class="row">
+    <div><label>Surligner en rouge si</label><select id="f_hf"></select></div>
+    <div><label>= valeur</label><input id="f_hv"></div>
+  </div></div>
+  <div data-for="kpi"><label>Alerte rouge si au-dessus de</label><input id="f_alert" type="number"></div>
+  <div data-for="table"><label>Colonnes</label><div class="chips" id="f_cols"></div></div>
+  <div data-for="list"><div class="row">
+    <div><label>Ligne 1</label><select id="f_l1"></select></div>
+    <div><label>Ligne 2</label><select id="f_l2"></select></div>
+    <div><label>A droite</label><select id="f_l3"></select></div>
+  </div></div>
+  <div data-for="table list"><label>Nombre max de lignes</label><input id="f_limit" type="number" placeholder="tout"></div>
+  <div class="actions">
+    <button id="wDel" onclick="delWidget()">Supprimer</button>
+    <button id="wUp" onclick="moveWidget(-1)" title="Monter">&#8593;</button>
+    <button id="wDown" onclick="moveWidget(1)" title="Descendre">&#8595;</button>
+    <span class="sp"></span>
+    <button onclick="dlgW.close()">Annuler</button><button class="primary" onclick="saveWidget()">Enregistrer</button>
+  </div>
+</dialog>
+
+<!-- Reglages -->
+<dialog id="dlgS">
+  <h3>Reglages</h3>
+  <label>Nom du dashboard</label><input id="s_title">
+
+  <h4>Microsoft 365 (Outlook, SharePoint, OneDrive)</h4>
+  <div class="row">
+    <div><label>ID d'application (client)</label><input id="s_client" placeholder="xxxxxxxx-xxxx-..."></div>
+    <div><label>ID d'annuaire (tenant)</label><input id="s_tenant" placeholder="organizations"></div>
+  </div>
+  <p class="hint">URI de redirection a declarer dans Azure (type « Application monopage / SPA ») :</p>
+  <div class="code" id="s_redirect"></div>
+  <div class="actions"><span id="s_msState" class="hint" style="flex:1;margin:0;align-self:center"></span><button id="s_msBtn" onclick="msToggle()"></button></div>
+
+  <h4>Sources de donnees</h4>
+  <div id="s_list"></div>
+  <div class="row" style="margin-top:10px">
+    <select id="s_newType"></select>
+    <button onclick="editSource(null)" style="flex:0 0 auto">+ Ajouter</button>
+  </div>
+
+  <h4>Qargo</h4>
+  <div id="s_qargoOn">
+    <p class="hint">URL du webhook a donner a Qargo (visibility events) :</p>
+    <div class="code" id="s_webhook"></div>
+    <div class="actions">
+      <button onclick="simulateQargo()">Simuler des evenements</button>
+      <button onclick="showRaw()">Voir les derniers evenements bruts</button>
+    </div>
+  </div>
+  <p class="hint" id="s_qargoOff">Hebergement statique (GitHub Pages) : pas de webhooks. Suivre Qargo via ses mails
+  (source Outlook + regle d'extraction) ou ses exports Excel enregistres sur OneDrive/SharePoint (source Excel SharePoint).</p>
+
+  <h4>Sauvegarde</h4>
+  <div class="actions" style="margin-top:6px">
+    <button onclick="exportCfg()">Exporter la config</button>
+    <button onclick="document.getElementById('importFile').click()">Importer</button>
+    <input type="file" id="importFile" accept=".json" hidden onchange="importCfg(this)">
+    <button onclick="localStorage.removeItem('dash-key');location.reload()">Changer de cle</button>
+  </div>
+  <div class="actions"><span class="sp"></span><button onclick="dlgS.close()">Fermer</button><button class="primary" onclick="saveSettings()">Enregistrer</button></div>
+</dialog>
+
+<!-- Source -->
+<dialog id="dlgSrc">
+  <h3 id="srcTitle">Source</h3>
+  <div id="srcForm"></div>
+  <div class="actions">
+    <button id="srcDel" onclick="delSource()">Supprimer</button><span class="sp"></span>
+    <button onclick="dlgSrc.close()">Annuler</button><button class="primary" onclick="saveSource()">OK</button>
+  </div>
+</dialog>
+
+<dialog id="dlgRaw"><h3>Evenements Qargo bruts</h3><pre id="rawPre"></pre><div class="actions"><span class="sp"></span><button onclick="dlgRaw.close()">Fermer</button></div></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js';document.head.appendChild(s)"></script>
+<script>
+"use strict";
+/* =====================================================================
+   CONFIG PAR DEFAUT (premiere ouverture)
+   ===================================================================== */
+var DEFAULT_CONFIG = {
+  title: "Dashboard Ops",
+  microsoft: { clientId: "", tenantId: "organizations" },
+  sources: [
+    { id: "demo", type: "demo", name: "Demo", interval: 15 },
+    { id: "qargo", type: "qargo", name: "Qargo", interval: 10 },
+    { id: "ext", type: "extension", name: "Extension", interval: 30 },
+    { id: "mail", type: "outlook", name: "Outlook", interval: 60, enabled: false, folder: "inbox", max: 50,
+      rules: [{ name: "Retards transport", match: { subject: "retard" },
+                extract: { camion: "camion\\s*:?\\s*([A-Z0-9-]+)", retard_min: "(\\d+)\\s*min" } }] }
+  ],
+  widgets: [
+    { id: "w1", title: "Camions en route", type: "kpi", source: "demo", dataset: "trajets", op: "count", where: { Statut: "En route" } },
+    { id: "w2", title: "Camions en retard", type: "kpi", source: "demo", dataset: "trajets", op: "count", where: { Statut: "Retard" }, alert_above: 2 },
+    { id: "w3", title: "Qargo - a quai / en cours", type: "kpi", source: "qargo", dataset: "qargo_stops_en_cours", op: "count" },
+    { id: "w4", title: "Mails non lus", type: "kpi", source: "demo", dataset: "inbox", op: "count", where: { unread: "true" } },
+    { id: "w5", title: "Qargo - stops en direct", type: "table", source: "qargo", dataset: "qargo_stops",
+      columns: ["heure", "commande", "client", "lieu", "activite", "statut", "eta", "vehicule"], highlight: { statut: "AT_STOP" }, size: "wide", limit: 25 },
+    { id: "w6", title: "Suivi trajets (demo)", type: "table", source: "demo", dataset: "trajets",
+      columns: ["Camion", "Client", "Statut", "ETA", "Retard (min)"], highlight: { Statut: "Retard" }, size: "wide" },
+    { id: "w7", title: "Palettes par client", type: "bar", source: "demo", dataset: "quais", group: "Client", op: "sum", field: "Palettes", size: "medium" },
+    { id: "w8", title: "Qargo - evenements", type: "list", source: "qargo", dataset: "qargo_evenements", line1: "resume", line2: "commande", meta: "heure", limit: 8, size: "medium" }
+  ]
+};
+
+var TYPES = {
+  demo:        { label: "Demo (donnees fictives)", fields: [] },
+  outlook:     { label: "Boite mail Outlook", ms: true, fields: [
+                  { k: "folder", l: "Dossier", d: "inbox", h: "inbox, ou l'ID d'un dossier" },
+                  { k: "mailbox", l: "Boite partagee (optionnel)", h: "ex : logistique@tml.be - vide = ta boite" },
+                  { k: "max", l: "Nombre de mails lus", d: 50, n: true },
+                  { k: "filter", l: "Filtre Graph (optionnel)", h: "ex : isRead eq false" },
+                  { k: "rules", l: "Regles d'extraction (JSON)", json: true,
+                    h: "Chaque regle cree un jeu de donnees. match = contient (from/subject/body), extract = regex, 1er groupe capture." } ] },
+  excel_sp:    { label: "Excel SharePoint / OneDrive / Teams", ms: true, fields: [
+                  { k: "shareLink", l: "Lien de partage du fichier", h: "Dans Excel : Partager > Copier le lien" },
+                  { k: "sheets", l: "Feuilles (optionnel, separees par des virgules)" },
+                  { k: "headerRow", l: "Ligne des entetes", d: 1, n: true } ] },
+  excel_local: { label: "Excel sur ce PC / disque reseau", fields: [
+                  { k: "sheets", l: "Feuilles (optionnel, separees par des virgules)" },
+                  { k: "headerRow", l: "Ligne des entetes", d: 1, n: true } ],
+                 note: "Chrome ou Edge uniquement. Le fichier est choisi sur cet appareil et relu automatiquement." },
+  qargo:       { label: "Qargo - temps reel (webhooks)", fields: [] },
+  qargo_res:   { label: "Qargo - flotte (API ressources)", fields: [], minInterval: 300 },
+  extension:   { label: "Extension navigateur (Qargo, sites web...)", fields: [],
+                 note: "Donnees recuperees par l'extension Dashboard Ops - Connecteur sur les sites ou tu es connecte. Clique sur la pastille de la source pour forcer une mise a jour." }
+};
+var MS_SCOPES = ["User.Read", "Mail.Read", "Mail.Read.Shared", "Files.Read.All", "Sites.Read.All"];
+
+/* =====================================================================
+   ETAT
+   ===================================================================== */
+var BASE = location.origin + location.pathname.replace(/[^\/]*$/, "");
+var cfg = null, online = true, serverError = "", sources = {}, timers = [], editing = null, editingSrc = null;
+var $ = function (id) { return document.getElementById(id); };
+var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+var dlgW = $("dlgW"), dlgS = $("dlgS"), dlgSrc = $("dlgSrc"), dlgKey = $("dlgKey"), dlgRaw = $("dlgRaw");
+
+/* ---------- appels serveur (fonctions Netlify) ---------- */
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ "x-app-key": localStorage.getItem("dash-key") || "" }, opts.headers || {});
+  return fetch(BASE + ".netlify/functions/" + path, opts).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) {
+      if (r.status === 401) { askKey("Cle refusee."); throw new Error("Cle d'acces invalide"); }
+      if (r.status === 404 && path === "config") throw new Error("local");
+      if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+      return d;
+    });
+  });
+}
+
+/* ---------- formatage ---------- */
+var ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+function fmt(v) {
+  if (v instanceof Date) return v.toLocaleString("fr-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  if (typeof v === "string" && ISO.test(v)) { var d = new Date(v); if (!isNaN(d)) return fmt(d); }
+  if (typeof v === "number") return v.toLocaleString("fr-BE");
+  if (typeof v === "boolean") return v ? "oui" : "non";
+  return v == null ? "" : v;
+}
+function num(v) { var n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+
+/* =====================================================================
+   MICROSOFT (MSAL)
+   ===================================================================== */
+var msApp = null, msAccount = null, msNeedLogin = false;
+function msInit() {
+  if (!cfg.microsoft || !cfg.microsoft.clientId || !window.msal) return Promise.resolve();
+  msApp = new msal.PublicClientApplication({
+    auth: { clientId: cfg.microsoft.clientId, authority: "https://login.microsoftonline.com/" + (cfg.microsoft.tenantId || "organizations"), redirectUri: BASE + "auth.html" },
+    cache: { cacheLocation: "localStorage" }
+  });
+  return msApp.handleRedirectPromise().then(function () {
+    msAccount = msApp.getAllAccounts()[0] || null;
+  }).catch(function (e) { console.warn(e); });
+}
+function msLogin() {
+  if (!msApp) { alert("Renseigne d'abord l'ID d'application Microsoft dans les reglages."); return Promise.resolve(); }
+  return msApp.loginPopup({ scopes: MS_SCOPES, prompt: "select_account" }).then(function (r) {
+    msAccount = r.account; msNeedLogin = false; refreshBanner(); startAll();
+  }).catch(function (e) { alert("Connexion Microsoft impossible : " + e.message); });
+}
+function msToken() {
+  if (!msApp) return Promise.reject(new Error("Microsoft non configure (Reglages)"));
+  if (!msAccount) { msNeedLogin = true; refreshBanner(); return Promise.reject(new Error("Connexion Microsoft requise")); }
+  return msApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount }).then(function (r) { return r.accessToken; })
+    .catch(function () { msNeedLogin = true; refreshBanner(); throw new Error("Session Microsoft expiree : reconnecter"); });
+}
+function graph(path, params) {
+  return msToken().then(function (tok) {
+    var url = new URL(path.indexOf("http") === 0 ? path : "https://graph.microsoft.com/v1.0" + path);
+    Object.keys(params || {}).forEach(function (k) { if (params[k] !== "" && params[k] != null) url.searchParams.set(k, params[k]); });
+    return fetch(url, { headers: { Authorization: "Bearer " + tok } });
+  }).then(function (r) {
+    return r.json().then(function (d) {
+      if (!r.ok) throw new Error((d.error && d.error.message) || ("Graph HTTP " + r.status));
+      return d;
+    });
+  });
+}
+function shareId(link) {
+  var b = btoa(unescape(encodeURIComponent(link.trim())));
+  return "u!" + b.replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
+}
+
+/* =====================================================================
+   CONNECTEURS (chacun renvoie { nom_dataset: [lignes] })
+   ===================================================================== */
+function applyRules(messages, rules) {
+  var out = {};
+  (rules || []).forEach(function (rule) {
+    var m = rule.match || {};
+    out[rule.name] = messages.filter(function (msg) {
+      return ["from", "subject", "body"].every(function (f) {
+        return !m[f] || String(msg[f] || "").toLowerCase().indexOf(String(m[f]).toLowerCase()) >= 0;
+      });
+    }).map(function (msg) {
+      var row = { date: msg.date, from: msg.from, subject: msg.subject }, text = msg.subject + "\n" + msg.body;
+      Object.keys(rule.extract || {}).forEach(function (f) {
+        try { var x = new RegExp(rule.extract[f], "i").exec(text); row[f] = x ? (x[1] || x[0]).trim() : null; } catch (e) { row[f] = "regex invalide"; }
+      });
+      return row;
+    });
+  });
+  return out;
+}
+
+function sheetsToDatasets(wb, src) {
+  var wanted = String(src.sheets || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+  var names = wanted.length ? wanted : wb.SheetNames, hr = Math.max(1, parseInt(src.headerRow || 1, 10)), out = {};
+  names.forEach(function (name) {
+    var ws = wb.Sheets[name];
+    if (!ws) { out[name] = []; return; }
+    var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false });
+    var head = (rows[hr - 1] || []).map(function (h, i) { return h == null || h === "" ? "col" + (i + 1) : String(h).trim(); });
+    out[name] = rows.slice(hr).filter(function (r) { return r.some(function (v) { return v != null && v !== ""; }); })
+      .map(function (r) { var o = {}; head.forEach(function (h, i) { o[h] = r[i] instanceof Date ? r[i].toISOString() : r[i]; }); return o; });
+  });
+  return out;
+}
+
+var CONNECTORS = {
+  demo: function () {
+    var C = ["Chaussea", "Nike", "H&M", "INDITEX", "ZEB"], S = ["En route", "A quai", "Chargement", "Retard", "Livre"], now = Date.now(), rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+    var trajets = [], quais = [], inbox = [];
+    for (var i = 0; i < 12; i++) { var st = rnd(S); trajets.push({ Camion: "TR-" + (100 + i), Client: rnd(C), Statut: st, ETA: new Date(now + Math.random() * 4 * 3600e3).toISOString(), "Retard (min)": st === "Retard" ? 10 + Math.floor(Math.random() * 80) : 0 }); }
+    for (var q = 1; q <= 8; q++) quais.push({ Quai: "Q" + q, Client: rnd(C), Palettes: Math.floor(Math.random() * 34) });
+    for (var m = 0; m < 10; m++) inbox.push({ date: new Date(now - m * 7 * 60e3).toISOString(), from: rnd(["tms@transport.be", "planning@client.com", "quai@tml.be"]), subject: rnd(["Retard camion TR-1" + m, "Nouvelle commande", "Confirmation enlevement", "Ecart inventaire"]), unread: m < 4 });
+    return Promise.resolve({ trajets: trajets, quais: quais, inbox: inbox });
+  },
+
+  outlook: function (src) {
+    var base = src.mailbox ? "/users/" + encodeURIComponent(src.mailbox) : "/me";
+    return graph(base + "/mailFolders/" + encodeURIComponent(src.folder || "inbox") + "/messages", {
+      "$top": src.max || 50, "$orderby": "receivedDateTime desc", "$filter": src.filter || "",
+      "$select": "receivedDateTime,from,subject,body,isRead,hasAttachments,importance"
+    }).then(function (d) {
+      var msgs = (d.value || []).map(function (m) {
+        var body = (m.body && m.body.content) || "";
+        if (m.body && m.body.contentType === "html") { var div = document.createElement("div"); div.innerHTML = body.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ""); body = div.textContent; }
+        return { date: m.receivedDateTime, from: (m.from && m.from.emailAddress && (m.from.emailAddress.name || m.from.emailAddress.address)) || "",
+                 subject: m.subject || "(sans objet)", body: body.slice(0, 5000), unread: !m.isRead, pj: !!m.hasAttachments, important: m.importance === "high" };
+      });
+      var out = { inbox: msgs.map(function (m) { return { date: m.date, from: m.from, subject: m.subject, unread: m.unread, pj: m.pj, important: m.important }; }) };
+      return Object.assign(out, applyRules(msgs, src.rules));
+    });
+  },
+
+  excel_sp: function (src) {
+    if (!src.shareLink) return Promise.reject(new Error("Lien de partage manquant"));
+    return graph("/shares/" + shareId(src.shareLink) + "/driveItem", { "$select": "name,@microsoft.graph.downloadUrl" })
+      .then(function (item) {
+        var url = item["@microsoft.graph.downloadUrl"];
+        if (!url) throw new Error("Fichier introuvable ou non accessible");
+        return fetch(url);
+      }).then(function (r) { return r.arrayBuffer(); })
+      .then(function (buf) { return sheetsToDatasets(XLSX.read(buf, { type: "array", cellDates: true }), src); });
+  },
+
+  excel_local: function (src) {
+    return getHandle(src.id).then(function (h) {
+      if (!h) throw new Error("Aucun fichier choisi (Reglages > source)");
+      return h.queryPermission({ mode: "read" }).then(function (p) {
+        if (p !== "granted") { var e = new Error("Cliquer pour reautoriser le fichier"); e.reauth = true; throw e; }
+        return h.getFile();
+      });
+    }).then(function (f) { return f.arrayBuffer(); })
+      .then(function (buf) { return sheetsToDatasets(XLSX.read(buf, { type: "array", cellDates: true }), src); });
+  },
+
+  extension: function () {
+    if (ext.linked === null) return Promise.reject(new Error("Extension non detectee (installee ? recharger la page)"));
+    if (!ext.linked) return Promise.reject(new Error("Ouvre l'extension sur cette page > Associer ce dashboard"));
+    var out = {}, etat = [];
+    Object.keys(ext.datasets || {}).forEach(function (k) {
+      var d = ext.datasets[k];
+      out[k] = d.rows || [];
+      etat.push({ source: k, lignes: (d.rows || []).length, maj: d.updated ? new Date(d.updated).toISOString() : null, erreur: d.error || "" });
+    });
+    out.sources_extension = etat;
+    return Promise.resolve(out);
+  },
+  qargo: function () { return api("qargo-data").then(function (d) { return d.datasets; }); },
+  qargo_res: function () { return api("qargo-api?what=resources").then(function (d) { return d.datasets; }); }
+};
+
+/* ---------- extension navigateur ---------- */
+var ext = { linked: null, datasets: null };
+window.addEventListener("message", function (e) {
+  if (e.source !== window || !e.data || !e.data.__dashOpsExt) return;
+  ext.linked = e.data.linked; ext.datasets = e.data.datasets;
+  if (cfg) cfg.sources.forEach(function (s) { if (s.type === "extension" && s.enabled !== false) tick(s); });
+});
+function extRefresh() { window.postMessage({ __dashOpsRefresh: true }, location.origin); }
+window.postMessage({ __dashOpsHello: true }, location.origin);
+
+/* ---------- fichiers locaux : poignees gardees dans IndexedDB ---------- */
+function idb() {
+  return new Promise(function (ok, ko) {
+    var r = indexedDB.open("dash-files", 1);
+    r.onupgradeneeded = function () { r.result.createObjectStore("h"); };
+    r.onsuccess = function () { ok(r.result); }; r.onerror = function () { ko(r.error); };
+  });
+}
+function getHandle(id) { return idb().then(function (db) { return new Promise(function (ok) { var q = db.transaction("h").objectStore("h").get(id); q.onsuccess = function () { ok(q.result); }; q.onerror = function () { ok(null); }; }); }); }
+function setHandle(id, h) { return idb().then(function (db) { return new Promise(function (ok) { var t = db.transaction("h", "readwrite"); t.objectStore("h").put(h, id); t.oncomplete = ok; }); }); }
+function pickFile(id) {
+  if (!window.showOpenFilePicker) { alert("Ce navigateur ne permet pas de suivre un fichier local. Utilise Chrome ou Edge, ou un lien SharePoint."); return; }
+  showOpenFilePicker({ types: [{ description: "Excel / CSV", accept: { "application/vnd.ms-excel": [".xlsx", ".xlsm", ".xls", ".csv"] } }] })
+    .then(function (hs) { return setHandle(id, hs[0]).then(function () { $("pickedName").textContent = hs[0].name; }); })
+    .catch(function () {});
+}
+function reauth(id) {
+  getHandle(id).then(function (h) { return h && h.requestPermission({ mode: "read" }); }).then(function () { tick(srcById(id)); });
+}
+
+/* =====================================================================
+   MOTEUR DE RAFRAICHISSEMENT
+   ===================================================================== */
+function srcById(id) { return cfg.sources.filter(function (s) { return s.id === id; })[0]; }
+function tick(src) {
+  if (!src || src._busy) return;
+  src._busy = true;
+  var st = sources[src.id] = sources[src.id] || { name: src.name };
+  st.name = src.name;
+  CONNECTORS[src.type](src).then(function (data) {
+    st.datasets = data; st.error = null; st.reauth = false; st.updated = new Date();
+  }).catch(function (e) {
+    st.error = e.message; st.reauth = !!e.reauth; st.updated = new Date();
+  }).then(function () { src._busy = false; render(); });
+}
+function startAll() {
+  timers.forEach(clearInterval); timers = [];
+  Object.keys(sources).forEach(function (k) { if (!srcById(k) || srcById(k).enabled === false) delete sources[k]; });
+  cfg.sources.forEach(function (src) {
+    if (src.enabled === false || !CONNECTORS[src.type]) return;
+    if ((src.type === "qargo" || src.type === "qargo_res") && !online) return;
+    var every = Math.max(TYPES[src.type].minInterval || 5, parseInt(src.interval || 60, 10)) * 1000;
+    tick(src);
+    timers.push(setInterval(function () { tick(src); }, every));
+  });
+  render();
+}
+
+/* =====================================================================
+   RENDU DES WIDGETS
+   ===================================================================== */
+function rowsOf(w) {
+  var s = sources[w.source]; if (!s || !s.datasets) return null;
+  var rows = s.datasets[w.dataset] || [];
+  if (w.where) rows = rows.filter(function (r) {
+    return Object.keys(w.where).every(function (k) { return String(r[k]).toLowerCase() === String(w.where[k]).toLowerCase(); });
+  });
+  return rows;
+}
+function agg(rows, op, field) {
+  if (op === "count" || !field) return rows.length;
+  var v = rows.map(function (r) { return num(r[field]); });
+  if (!v.length) return 0;
+  var sum = v.reduce(function (a, b) { return a + b; }, 0);
+  return op === "sum" ? Math.round(sum * 100) / 100 : op === "avg" ? Math.round(sum / v.length * 10) / 10 : op === "max" ? Math.max.apply(null, v) : Math.min.apply(null, v);
+}
+function renderWidget(w) {
+  var rows = rowsOf(w), body = "", alert = false, s = sources[w.source];
+  if (rows === null) body = '<div class="empty">' + (s && s.error ? esc(s.error) : srcById(w.source) && srcById(w.source).enabled !== false ? "Chargement..." : "Source desactivee") + "</div>";
+  else if (w.type === "kpi") {
+    var v = agg(rows, w.op, w.field);
+    alert = w.alert_above != null && w.alert_above !== "" && v > w.alert_above;
+    body = '<div class="kpi">' + esc(fmt(v)) + "</div>";
+  } else if (w.type === "table") {
+    var cols = w.columns && w.columns.length ? w.columns : Object.keys(rows[0] || {});
+    var list = w.limit ? rows.slice(0, w.limit) : rows;
+    body = rows.length ? '<div class="tablewrap"><table><thead><tr>' + cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      list.map(function (r) {
+        var hl = w.highlight && Object.keys(w.highlight).some(function (k) { return String(r[k]).toLowerCase() === String(w.highlight[k]).toLowerCase(); });
+        return "<tr" + (hl ? ' class="hl"' : "") + ">" + cols.map(function (c) { return "<td>" + esc(fmt(r[c])) + "</td>"; }).join("") + "</tr>";
+      }).join("") + "</tbody></table></div>" : '<div class="empty">Aucune ligne</div>';
+  } else if (w.type === "bar") {
+    var g = {};
+    rows.forEach(function (r) { var k = r[w.group] == null || r[w.group] === "" ? "(vide)" : r[w.group]; (g[k] = g[k] || []).push(r); });
+    var data = Object.keys(g).map(function (k) { return [k, agg(g[k], w.op, w.field)]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 15);
+    var max = Math.max.apply(null, data.map(function (d) { return d[1]; }).concat([1]));
+    body = data.map(function (d) { return '<div class="bar"><span title="' + esc(d[0]) + '">' + esc(d[0]) + '</span><i style="width:' + Math.max(0, d[1] / max * 100) + '%"></i><b>' + esc(fmt(d[1])) + "</b></div>"; }).join("") || '<div class="empty">Aucune donnee</div>';
+  } else if (w.type === "list") {
+    body = rows.slice(0, w.limit || 8).map(function (r) {
+      return '<div class="li"><div class="l1">' + esc(fmt(r[w.line1])) + '</div><div class="l2"><span>' + esc(fmt(r[w.line2])) + "</span><span>" + esc(fmt(r[w.meta])) + "</span></div></div>";
+    }).join("") || '<div class="empty">Rien</div>';
+  }
+  return '<div class="card t-' + esc(w.type) + " " + esc(w.size || "") + (alert ? " alert" : "") + '"><button class="edit" onclick="openEditor(\'' + esc(w.id) + '\')" title="Modifier">&#9998;</button><h2>' + esc(w.title) + "</h2>" + body + "</div>";
+}
+function render() {
+  $("grid").innerHTML = cfg.widgets.map(renderWidget).join("") || '<div class="empty">Aucun widget : clique sur « + Widget ».</div>';
+  $("sources").innerHTML = Object.keys(sources).map(function (k) {
+    var s = sources[k], t = s.updated ? s.updated.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "...";
+    return '<span class="src' + (s.error ? " err" : "") + '" title="' + esc(s.error || "") + '"' + (s.reauth ? ' onclick="reauth(\'' + esc(k) + '\')"' : srcById(k) && srcById(k).type === "extension" ? ' onclick="extRefresh()" style="cursor:pointer" title="Mettre a jour maintenant"' : "") + ">" + esc(s.name || k) + " &middot; " + (s.error ? (s.reauth ? "cliquer pour autoriser" : "erreur") : t) + "</span>";
+  }).join("");
+}
+function refreshBanner() {
+  var b = $("banner");
+  if (msNeedLogin && msApp) { $("bannerTxt").textContent = "Connexion Microsoft necessaire pour les mails et fichiers SharePoint."; $("bannerBtn").textContent = "Se connecter"; $("bannerBtn").onclick = msLogin; b.className = "show"; }
+  else if (serverError) { $("bannerTxt").textContent = serverError; $("bannerBtn").textContent = "Recharger"; $("bannerBtn").onclick = function () { location.reload(); }; b.className = "show"; }
+  else b.className = "";
+}
+setInterval(function () { $("clock").textContent = new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" }); }, 1000);
+
+/* =====================================================================
+   SAUVEGARDE CONFIG
+   ===================================================================== */
+function cleanCfg() { return JSON.parse(JSON.stringify(cfg, function (k, v) { return k.charAt(0) === "_" ? undefined : v; })); }
+function persist() {
+  var c = cleanCfg();
+  localStorage.setItem("dash-config", JSON.stringify(c));
+  if (online) api("config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(c) }).catch(function (e) { alert("Sauvegarde en ligne impossible : " + e.message); });
+  render();
+}
+
+/* =====================================================================
+   EDITEUR DE WIDGET
+   ===================================================================== */
+function opt(values, sel, blank) {
+  return (blank != null ? '<option value="">' + esc(blank) + "</option>" : "") + values.map(function (v) {
+    var val = typeof v === "object" ? v[0] : v, lab = typeof v === "object" ? v[1] : v;
+    return '<option value="' + esc(val) + '"' + (val === sel ? " selected" : "") + ">" + esc(lab) + "</option>";
+  }).join("");
+}
+function fieldsOf() {
+  var s = sources[$("f_source").value], d = s && s.datasets && s.datasets[$("f_dataset").value], keys = {};
+  (d || []).slice(0, 30).forEach(function (r) { Object.keys(r).forEach(function (k) { keys[k] = 1; }); });
+  var w = editing || {};
+  [w.field, w.group, w.line1, w.line2, w.meta].concat(w.columns || []).forEach(function (k) { if (k) keys[k] = 1; });
+  return Object.keys(keys);
+}
+function fillDatasets(sel) {
+  var s = sources[$("f_source").value];
+  var ds = Object.keys((s && s.datasets) || {});
+  if (sel && ds.indexOf(sel) < 0) ds.push(sel);
+  $("f_dataset").innerHTML = opt(ds, sel);
+  fillFields();
+}
+function fillFields() {
+  var f = fieldsOf(), w = editing || {}, wf = w.where ? Object.keys(w.where)[0] : "", hf = w.highlight ? Object.keys(w.highlight)[0] : "";
+  $("f_field").innerHTML = opt(f, w.field, "-");
+  $("f_group").innerHTML = opt(f, w.group);
+  $("f_wf").innerHTML = opt(f, wf, "(aucun)");
+  $("f_hf").innerHTML = opt(f, hf, "(aucun)");
+  $("f_l1").innerHTML = opt(f, w.line1 || (f.indexOf("subject") >= 0 ? "subject" : f[0]));
+  $("f_l2").innerHTML = opt(f, w.line2 || (f.indexOf("from") >= 0 ? "from" : f[1]), "-");
+  $("f_l3").innerHTML = opt(f, w.meta || (f.indexOf("date") >= 0 ? "date" : ""), "-");
+  $("f_cols").innerHTML = f.map(function (c) {
+    var on = !w.columns || w.columns.indexOf(c) >= 0;
+    return '<label><input type="checkbox" value="' + esc(c) + '"' + (on ? " checked" : "") + ">" + esc(c) + "</label>";
+  }).join("") || '<span class="hint">Aucune donnee encore chargee pour cette source.</span>';
+}
+function syncForm() {
+  var t = $("f_type").value;
+  document.querySelectorAll("#dlgW [data-for]").forEach(function (el) { el.style.display = el.dataset.for.split(" ").indexOf(t) >= 0 ? "" : "none"; });
+}
+function openEditor(id) {
+  editing = id ? cfg.widgets.filter(function (w) { return w.id === id; })[0] : null;
+  var w = editing || { type: "kpi", op: "count" };
+  $("wTitle").textContent = editing ? "Modifier le widget" : "Nouveau widget";
+  ["wDel", "wUp", "wDown"].forEach(function (b) { $(b).style.display = editing ? "" : "none"; });
+  $("f_title").value = w.title || "";
+  $("f_type").value = w.type;
+  $("f_size").value = w.size || "";
+  $("f_op").value = w.op || "count";
+  $("f_source").innerHTML = opt(cfg.sources.map(function (s) { return [s.id, s.name + (s.enabled === false ? " (desactivee)" : "")]; }), w.source || Object.keys(sources)[0]);
+  fillDatasets(w.dataset);
+  $("f_wv").value = w.where ? w.where[Object.keys(w.where)[0]] : "";
+  $("f_hv").value = w.highlight ? w.highlight[Object.keys(w.highlight)[0]] : "";
+  $("f_alert").value = w.alert_above != null ? w.alert_above : "";
+  $("f_limit").value = w.limit || "";
+  syncForm(); dlgW.showModal();
+}
+function saveWidget() {
+  var w = { id: editing ? editing.id : "w" + Date.now(), title: $("f_title").value || "Sans titre", type: $("f_type").value, source: $("f_source").value, dataset: $("f_dataset").value };
+  if ($("f_size").value) w.size = $("f_size").value;
+  if ($("f_wf").value && $("f_wv").value !== "") { w.where = {}; w.where[$("f_wf").value] = $("f_wv").value; }
+  if (w.type === "kpi" || w.type === "bar") { w.op = $("f_op").value; if ($("f_field").value) w.field = $("f_field").value; }
+  if (w.type === "bar") w.group = $("f_group").value;
+  if (w.type === "kpi" && $("f_alert").value !== "") w.alert_above = num($("f_alert").value);
+  if (w.type === "table") {
+    w.columns = [].slice.call($("f_cols").querySelectorAll("input:checked")).map(function (i) { return i.value; });
+    if ($("f_hf").value && $("f_hv").value !== "") { w.highlight = {}; w.highlight[$("f_hf").value] = $("f_hv").value; }
+  }
+  if (w.type === "list") { w.line1 = $("f_l1").value; w.line2 = $("f_l2").value; w.meta = $("f_l3").value; }
+  if ((w.type === "table" || w.type === "list") && $("f_limit").value) w.limit = parseInt($("f_limit").value, 10);
+  if (editing) cfg.widgets[cfg.widgets.indexOf(editing)] = w; else cfg.widgets.push(w);
+  dlgW.close(); persist();
+}
+function delWidget() { if (!confirm("Supprimer ce widget ?")) return; cfg.widgets.splice(cfg.widgets.indexOf(editing), 1); dlgW.close(); persist(); }
+function moveWidget(d) {
+  var i = cfg.widgets.indexOf(editing), j = i + d;
+  if (j < 0 || j >= cfg.widgets.length) return;
+  cfg.widgets.splice(i, 1); cfg.widgets.splice(j, 0, editing); persist();
+}
+
+/* =====================================================================
+   REGLAGES + SOURCES
+   ===================================================================== */
+function openSettings() {
+  $("s_title").value = cfg.title || "";
+  $("s_client").value = cfg.microsoft.clientId || "";
+  $("s_tenant").value = cfg.microsoft.tenantId || "organizations";
+  $("s_redirect").textContent = BASE + "auth.html";
+  $("s_webhook").textContent = BASE + ".netlify/functions/qargo-webhook";
+  $("s_qargoOn").style.display = online ? "" : "none"; $("s_qargoOff").style.display = online ? "none" : "";
+  $("s_msState").textContent = msAccount ? "Connecte : " + msAccount.username : (cfg.microsoft.clientId ? "Non connecte" : "Non configure");
+  $("s_msBtn").textContent = msAccount ? "Se deconnecter" : "Se connecter";
+  $("s_newType").innerHTML = opt(Object.keys(TYPES).filter(function (t) { return online || t.indexOf("qargo") !== 0; }).map(function (t) { return [t, TYPES[t].label]; }));
+  listSources(); dlgS.showModal();
+}
+function listSources() {
+  $("s_list").innerHTML = cfg.sources.map(function (s, i) {
+    return '<div class="srcitem' + (s.enabled === false ? " off" : "") + '"><div><b>' + esc(s.name) + "</b><small>" + esc(TYPES[s.type] ? TYPES[s.type].label : s.type) + " &middot; toutes les " + esc(s.interval) + " s" + (s.enabled === false ? " &middot; desactivee" : "") + '</small></div><button class="small" onclick="editSource(' + i + ')">Modifier</button></div>';
+  }).join("");
+}
+function msToggle() {
+  cfg.microsoft.clientId = $("s_client").value.trim(); cfg.microsoft.tenantId = $("s_tenant").value.trim() || "organizations";
+  if (msAccount) { msApp.logoutPopup({ account: msAccount, postLogoutRedirectUri: BASE + "auth.html", mainWindowRedirectUri: BASE }).catch(function () {}); msAccount = null; dlgS.close(); return; }
+  persist();
+  msInit().then(msLogin).then(function () { if (dlgS.open) openSettings(); });
+}
+function saveSettings() {
+  var changed = cfg.microsoft.clientId !== $("s_client").value.trim();
+  cfg.title = $("s_title").value || "Dashboard Ops"; document.title = cfg.title; $("appTitle").textContent = cfg.title;
+  cfg.microsoft.clientId = $("s_client").value.trim(); cfg.microsoft.tenantId = $("s_tenant").value.trim() || "organizations";
+  dlgS.close(); persist();
+  (changed ? msInit() : Promise.resolve()).then(startAll);
+}
+function editSource(i) {
+  editingSrc = i == null ? { id: "s" + Date.now(), type: $("s_newType").value, name: TYPES[$("s_newType").value].label, interval: 60, _new: true } : cfg.sources[i];
+  var s = editingSrc, T = TYPES[s.type] || { fields: [] }, h = "";
+  $("srcTitle").textContent = T.label || s.type;
+  h += '<label>Nom</label><input id="sf_name" value="' + esc(s.name) + '">';
+  h += '<div class="row"><div><label>Rafraichir toutes les (secondes)</label><input id="sf_interval" type="number" min="5" value="' + esc(s.interval || 60) + '"></div>';
+  h += '<div><label>&nbsp;</label><label class="check"><input type="checkbox" id="sf_enabled"' + (s.enabled === false ? "" : " checked") + "> Activee</label></div></div>";
+  T.fields.forEach(function (f) {
+    var v = s[f.k] != null ? s[f.k] : (f.d != null ? f.d : "");
+    h += "<label>" + esc(f.l) + "</label>";
+    if (f.json) h += '<textarea id="sf_' + f.k + '">' + esc(JSON.stringify(v || [], null, 2)) + "</textarea>";
+    else h += '<input id="sf_' + f.k + '"' + (f.n ? ' type="number"' : "") + ' value="' + esc(v) + '">';
+    if (f.h) h += '<p class="hint">' + esc(f.h) + "</p>";
+  });
+  if (s.type === "excel_local") h += '<div class="actions"><button onclick="pickFile(\'' + esc(s.id) + '\')">Choisir le fichier...</button><span class="hint" id="pickedName" style="align-self:center"></span></div>';
+  if (T.ms) h += '<p class="hint">Utilise la connexion Microsoft des reglages.</p>';
+  if (T.note) h += '<p class="hint">' + esc(T.note) + "</p>";
+  if (T.minInterval) h += '<p class="hint">Minimum ' + T.minInterval + " s (limites de l'API Qargo).</p>";
+  $("srcForm").innerHTML = h;
+  $("srcDel").style.display = s._new ? "none" : "";
+  if (s.type === "excel_local") getHandle(s.id).then(function (hd) { if (hd) $("pickedName").textContent = hd.name; });
+  dlgSrc.showModal();
+}
+function saveSource() {
+  var s = editingSrc, T = TYPES[s.type] || { fields: [] };
+  s.name = $("sf_name").value || T.label;
+  s.interval = Math.max(T.minInterval || 5, parseInt($("sf_interval").value || 60, 10));
+  if ($("sf_enabled").checked) delete s.enabled; else s.enabled = false;
+  for (var i = 0; i < T.fields.length; i++) {
+    var f = T.fields[i], el = $("sf_" + f.k), v = el.value;
+    if (f.json) { try { v = JSON.parse(v || "[]"); } catch (e) { alert("JSON invalide dans « " + f.l + " » : " + e.message); return; } }
+    else if (f.n) v = v === "" ? f.d : parseInt(v, 10);
+    if (v === "" || v == null) delete s[f.k]; else s[f.k] = v;
+  }
+  if (s._new) { delete s._new; cfg.sources.push(s); }
+  dlgSrc.close(); listSources(); persist(); startAll();
+}
+function delSource() {
+  if (!confirm("Supprimer cette source ? Les widgets qui l'utilisent resteront vides.")) return;
+  cfg.sources.splice(cfg.sources.indexOf(editingSrc), 1); dlgSrc.close(); listSources(); persist(); startAll();
+}
+
+/* ---------- Qargo : simulation et debug ---------- */
+function simulateQargo() {
+  if (!online) { alert("Disponible une fois le site deploye sur Netlify."); return; }
+  var C = ["Chaussea", "Nike", "H&M", "INDITEX", "ZEB"], L = ["TML Ghlin", "TML Hornu", "Lille DC", "Anvers Port", "Liege Airport"], ev = [], rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+  for (var i = 0; i < 8; i++) {
+    var order = "ORD-" + (10000 + Math.floor(Math.random() * 89999)), plate = "1-" + rnd(["ABC", "TML", "XYZ"]) + "-" + (100 + Math.floor(Math.random() * 899)), client = rnd(C), t = new Date().toISOString();
+    ev.push({ event_type: "ORDER_STATUS", status: "ACCEPTED", event_time: t, order: { order_number: order, customer: { name: client } } });
+    ev.push({ event_type: "POSITION", event_time: t, resource: { license_plate: plate, driver_name: "Chauffeur " + i }, position: { latitude: +(50.4 + Math.random()).toFixed(5), longitude: +(3.8 + Math.random()).toFixed(5) } });
+    ev.push({ event_type: "STOP_STATUS", status: rnd(["AT_STOP", "COMPLETED"]), event_time: t, eta_start: new Date(Date.now() + Math.random() * 7200e3).toISOString(),
+              order: { order_number: order, customer: { name: client } }, stop: { stop_id: "S" + order, location: { name: rnd(L) }, activity: rnd(["PICKUP", "DELIVERY"]) }, resource: { license_plate: plate } });
+  }
+  api("qargo-webhook", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) })
+    .then(function (d) { alert(d.events + " evenements de test envoyes."); var q = cfg.sources.filter(function (s) { return s.type === "qargo"; })[0]; if (q) tick(q); })
+    .catch(function (e) { alert("Erreur : " + e.message); });
+}
+function showRaw() {
+  if (!online) { alert("Disponible une fois le site deploye sur Netlify."); return; }
+  api("qargo-data?raw=1").then(function (d) { $("rawPre").textContent = JSON.stringify(d.raw || [], null, 2) || "Aucun evenement recu."; dlgRaw.showModal(); })
+    .catch(function (e) { alert(e.message); });
+}
+
+/* ---------- import / export ---------- */
+function exportCfg() {
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(cleanCfg(), null, 2)], { type: "application/json" }));
+  a.download = "dashboard-config.json"; a.click();
+}
+function importCfg(input) {
+  var f = input.files[0]; if (!f) return;
+  f.text().then(function (t) {
+    var c = JSON.parse(t);
+    if (!Array.isArray(c.sources) || !Array.isArray(c.widgets)) throw new Error("fichier non reconnu");
+    cfg = Object.assign({}, DEFAULT_CONFIG, c); persist(); dlgS.close(); msInit().then(startAll);
+  }).catch(function (e) { alert("Import impossible : " + e.message); });
+  input.value = "";
+}
+
+/* =====================================================================
+   DEMARRAGE
+   ===================================================================== */
+function askKey(msg) {
+  $("keyErr").textContent = msg || "";
+  if (!dlgKey.open) dlgKey.showModal();
+}
+function saveKey() {
+  localStorage.setItem("dash-key", $("keyInput").value.trim());
+  dlgKey.close(); boot();
+}
+function boot() {
+  var local = null;
+  try { local = JSON.parse(localStorage.getItem("dash-config")); } catch (e) {}
+  var loaded = location.protocol === "file:" ? Promise.reject(new Error("local")) :
+    !localStorage.getItem("dash-key") ? fetch(BASE + ".netlify/functions/config").then(function (r) {
+      if (r.status === 404) throw new Error("local");
+      if (r.status === 500) return r.json().then(function (d) { serverError = d.error; throw new Error("local"); });
+      askKey(); throw new Error("cle");
+    }) : api("config");
+  loaded.then(function (d) {
+    online = true;
+    cfg = d.config || local || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    if (!d.config) persist();
+    go();
+  }).catch(function (e) {
+    if (e.message === "cle" || e.message === "Cle d'acces invalide") return;
+    online = false;
+    cfg = local || staticDefault();
+    go();
+  });
+}
+function staticDefault() {
+  var c = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  c.sources = c.sources.filter(function (s) { return s.type.indexOf("qargo") !== 0; });
+  c.widgets = c.widgets.filter(function (w) { return w.source !== "qargo"; });
+  return c;
+}
+function go() {
+  cfg.microsoft = cfg.microsoft || { clientId: "", tenantId: "organizations" };
+  document.title = cfg.title || "Dashboard Ops"; $("appTitle").textContent = document.title;
+  refreshBanner();
+  msInit().then(function () { refreshBanner(); startAll(); });
+}
+window.addEventListener("load", boot);
+</script>
+</body>
+</html>
