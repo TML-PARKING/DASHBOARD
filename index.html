@@ -212,14 +212,46 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
   .ident h1{font-size:18px}
 }
 </style>
+<style>
+/* Ajouts : écran d'accueil, assistant, choix, liste de fichiers */
+.welcome{grid-column:1/-1;display:grid;place-items:center;padding:56px 16px}
+.welcome-in{max-width:520px;text-align:center}
+.welcome h2{font-size:30px;line-height:1.15;margin:0 0 10px;font-variation-settings:"wdth" 115;letter-spacing:-.01em}
+.welcome p{color:var(--muted);margin:0 0 22px;font-size:16px}
+.btn.big{padding:14px 22px;font-size:16px;border-radius:var(--r)}
+.ms-logo{width:20px;height:20px;display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.ms-logo i{display:block}.ms-logo i:nth-child(1){background:#F25022}.ms-logo i:nth-child(2){background:#7FBA00}.ms-logo i:nth-child(3){background:#00A4EF}.ms-logo i:nth-child(4){background:#FFB900}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 4px}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;border:2px solid var(--line);background:var(--panel);border-radius:var(--r);padding:16px;cursor:pointer;color:var(--ink)}
+.choice:hover,.choice[aria-pressed=true]{border-color:var(--ink)}
+.choice svg{width:28px;height:28px}
+.choice b{font-size:16px}.choice span{font-size:13px;color:var(--muted)}
+@media (max-width:480px){.choices{grid-template-columns:1fr}}
+.files{list-style:none;margin:10px 0 0;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);max-height:340px;overflow:auto}
+.files li{border-bottom:1px solid var(--line)}.files li:last-child{border-bottom:none}
+.files button{width:100%;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;text-align:left;border:none;background:var(--panel);padding:10px 12px;cursor:pointer;color:var(--ink)}
+.files button:hover,.files button[aria-pressed=true]{background:var(--panel-2)}
+.files button[aria-pressed=true]{box-shadow:inset 4px 0 0 var(--signal)}
+.files .xl{width:28px;height:28px;border-radius:6px;background:#1D6F42;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+.files b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.files small{color:var(--muted);font-size:12px}
+.steps{margin:6px 0 0;padding:0 0 0 0;list-style:none;counter-reset:st}
+.steps li{counter-increment:st;position:relative;padding:12px 0 12px 40px;border-bottom:1px solid var(--line);font-size:14px}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(st);position:absolute;left:0;top:11px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;font-weight:700;font-size:13px}
+.steps b{font-weight:700}
+.steps .copy{margin-top:8px}
+.who{display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--signal);color:var(--signal-ink);display:grid;place-items:center;font-weight:800;font-size:13px}
+</style>
 </head>
 <body>
 <header class="board">
   <div class="board-in">
     <div class="ident"><h1 id="appTitle">Dashboard Ops</h1><p id="today"></p></div>
-    <div class="clock" aria-live="off"><time id="clock">--:--</time><div class="shift"><b id="shiftName"></b><span id="shiftHours"></span></div></div>
+    <div class="clock"><time id="clock">--:--</time><div class="shift"><b id="shiftName"></b><span id="shiftHours"></span></div></div>
     <div class="tools">
-      <button class="btn signal" onclick="openEditor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Ajouter un widget</span></button>
+      <button class="btn signal" id="addBtn" onclick="openAdd()" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Ajouter des infos</span></button>
       <button class="btn icon-only" onclick="openSettings()" aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
     </div>
   </div>
@@ -228,30 +260,82 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
 
 <main>
   <div class="notice" id="notice" role="status"><p id="noticeTxt"></p><button class="btn primary sm" id="noticeBtn"></button></div>
-  <div class="sources" id="sources" aria-label="État des sources"></div>
+  <div class="sources" id="sources"></div>
   <div class="grid" id="grid"></div>
 </main>
-
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<!-- Clé d'accès (version Netlify) -->
-<dialog id="dlgKey" class="modal">
-  <div class="d-head"><h3>Clé d'accès</h3></div>
-  <div class="d-body">
-    <p class="hint">La clé définie dans Netlify (variable APP_KEY). Elle reste mémorisée sur cet appareil.</p>
-    <label for="keyInput">Clé</label><input id="keyInput" type="password" autocomplete="current-password">
-    <p class="hint" id="keyErr" style="color:var(--bad)"></p>
+<!-- Assistant de première configuration (une seule fois) -->
+<dialog id="dlgSetup" class="drawer">
+  <div class="d-wrap">
+    <div class="d-head"><h3>Relier l'app à Microsoft</h3><button class="btn ghost icon-only" onclick="dlgSetup.close()" aria-label="Fermer">✕</button></div>
+    <div class="d-body">
+      <p class="legend-sub" style="margin-top:14px">À faire une seule fois (3 minutes). Microsoft demande que chaque app qui lit des mails soit déclarée par son propriétaire. Ensuite, tu n'auras plus qu'à cliquer sur « Se connecter ».</p>
+      <ol class="steps">
+        <li>Ouvre <a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade" target="_blank" rel="noopener"><b>ce lien</b></a> et connecte-toi avec ton compte Microsoft habituel.</li>
+        <li><b>Nom</b> : Dashboard Ops.<br><b>Types de comptes</b> : choisis la 1<sup>re</sup> option si c'est ton compte TML, sinon celle qui inclut les « comptes Microsoft personnels ».</li>
+        <li><b>URI de redirection</b> : dans la liste, choisis <b>Application monopage (SPA)</b>, puis colle cette adresse :
+          <div class="copy"><code id="uri1"></code><button class="btn sm" onclick="copyText('uri1')">Copier</button></div>
+          Clique sur <b>S'inscrire</b>.</li>
+        <li>Sur la page qui s'ouvre : menu <b>Authentification</b> › <b>Ajouter un URI</b> sous « Application monopage », colle aussi :
+          <div class="copy"><code id="uri2"></code><button class="btn sm" onclick="copyText('uri2')">Copier</button></div>
+          puis <b>Enregistrer</b>.</li>
+        <li>Menu <b>Vue d'ensemble</b> : copie l'<b>ID d'application (client)</b> et colle-le ici :
+          <input id="setupId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" style="margin-top:8px">
+          <select id="setupTenant" style="margin-top:8px">
+            <option value="organizations">C'est un compte professionnel (TML)</option>
+            <option value="consumers">C'est un compte personnel (outlook.com, hotmail)</option>
+          </select></li>
+      </ol>
+      <div id="setupErr"></div>
+    </div>
+    <div class="d-foot"><span class="sp"></span><button class="btn primary" onclick="finishSetup()">Valider et se connecter</button></div>
   </div>
-  <div class="d-foot"><span class="sp"></span><button class="btn primary" onclick="saveKey()">Valider</button></div>
+</dialog>
+
+<!-- Ajouter des infos -->
+<dialog id="dlgAdd" class="drawer">
+  <div class="d-wrap">
+    <div class="d-head"><h3>Ajouter des infos</h3><button class="btn ghost icon-only" onclick="dlgAdd.close()" aria-label="Fermer">✕</button></div>
+    <div class="d-body">
+      <div class="choices">
+        <button class="choice" type="button" id="chMail" onclick="addKind('mail')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><b>Mes mails</b><span>Outlook : un dossier, un expéditeur, un mot dans l'objet…</span></button>
+        <button class="choice" type="button" id="chXl" onclick="addKind('excel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><b>Un fichier Excel</b><span>OneDrive, SharePoint ou Teams</span></button>
+      </div>
+
+      <div id="addMail" hidden>
+        <fieldset>
+          <label for="m_name">Nom</label><input id="m_name" placeholder="ex. Mails transporteurs">
+          <label for="m_folder">Dossier</label><select id="m_folder"><option value="inbox">Boîte de réception</option></select>
+          <div class="row">
+            <div><label for="m_from">Expéditeur contient</label><input id="m_from" placeholder="ex. qargo, @nike.com"></div>
+            <div><label for="m_subject">Objet contient</label><input id="m_subject" placeholder="ex. retard"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="m_unread"> Seulement les non lus</label>
+          <p class="hint" id="m_preview"></p>
+        </fieldset>
+      </div>
+
+      <div id="addXl" hidden>
+        <fieldset>
+          <label for="x_q">Chercher un fichier</label>
+          <input id="x_q" type="search" placeholder="Nom du fichier (vide = les plus récents)">
+          <ul class="files" id="x_list"></ul>
+          <p class="hint" id="x_hint"></p>
+        </fieldset>
+      </div>
+    </div>
+    <div class="d-foot"><span class="sp"></span><button class="btn primary" id="addGo" onclick="confirmAdd()" disabled>Ajouter au tableau</button></div>
+  </div>
 </dialog>
 
 <!-- Widget -->
 <dialog id="dlgW" class="drawer">
   <div class="d-wrap">
-    <div class="d-head"><h3 id="wTitle">Nouveau widget</h3><button class="btn ghost icon-only" onclick="dlgW.close()" aria-label="Fermer">✕</button></div>
+    <div class="d-head"><h3 id="wTitle">Modifier l'affichage</h3><button class="btn ghost icon-only" onclick="dlgW.close()" aria-label="Fermer">✕</button></div>
     <div class="d-body">
       <fieldset>
-        <label for="f_title">Titre</label><input id="f_title" placeholder="ex. Camions en retard">
+        <label for="f_title">Titre</label><input id="f_title">
         <label>Affichage</label>
         <div class="segmented" id="f_typeSeg">
           <button type="button" data-v="kpi">Chiffre</button><button type="button" data-v="table">Tableau</button>
@@ -266,18 +350,18 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
         <h4 class="lg">Données</h4>
         <div class="row">
           <div><label for="f_source">Source</label><select id="f_source" onchange="fillDatasets()"></select></div>
-          <div><label for="f_dataset">Jeu de données</label><select id="f_dataset" onchange="fillFields()"></select></div>
+          <div><label for="f_dataset">Feuille / liste</label><select id="f_dataset" onchange="fillFields()"></select></div>
         </div>
         <div class="row">
           <div><label for="f_wf">Garder seulement si</label><select id="f_wf"></select></div>
-          <div><label for="f_wv">est égal à</label><input id="f_wv" placeholder="vide = tout garder"></div>
+          <div><label for="f_wv">contient</label><input id="f_wv" placeholder="vide = tout garder"></div>
         </div>
       </fieldset>
       <fieldset data-for="kpi bar">
         <h4 class="lg">Calcul</h4>
         <div class="row">
           <div><label for="f_op">Opération</label><select id="f_op"><option value="count">Compter les lignes</option><option value="sum">Somme</option><option value="avg">Moyenne</option><option value="max">Maximum</option><option value="min">Minimum</option></select></div>
-          <div><label for="f_field">Sur le champ</label><select id="f_field"></select></div>
+          <div><label for="f_field">Sur la colonne</label><select id="f_field"></select></div>
         </div>
         <div data-for="bar"><label for="f_group">Regrouper par</label><select id="f_group"></select></div>
         <div data-for="kpi"><label for="f_alert">Passer en rouge au-dessus de</label><input id="f_alert" type="number" inputmode="decimal" placeholder="pas d'alerte"></div>
@@ -287,7 +371,7 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
         <div class="chips" id="f_cols"></div>
         <div class="row">
           <div><label for="f_hf">Surligner la ligne si</label><select id="f_hf"></select></div>
-          <div><label for="f_hv">est égal à</label><input id="f_hv"></div>
+          <div><label for="f_hv">contient</label><input id="f_hv"></div>
         </div>
       </fieldset>
       <fieldset data-for="list">
@@ -307,6 +391,7 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
       <button class="btn icon-only" id="wUp" onclick="moveWidget(-1)" aria-label="Déplacer avant">↑</button>
       <button class="btn icon-only" id="wDown" onclick="moveWidget(1)" aria-label="Déplacer après">↓</button>
       <span class="sp"></span>
+      <button class="btn" id="wDup" onclick="dupWidget()">Dupliquer</button>
       <button class="btn primary" onclick="saveWidget()">Enregistrer</button>
     </div>
   </div>
@@ -318,58 +403,23 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
     <div class="d-head"><h3>Réglages</h3><button class="btn ghost icon-only" onclick="dlgS.close()" aria-label="Fermer">✕</button></div>
     <div class="d-body">
       <fieldset>
-        <label for="s_title">Nom du dashboard</label><input id="s_title">
+        <h4 class="lg">Compte</h4>
+        <div class="row" style="align-items:center;margin-top:8px"><div class="who" id="s_who"></div><button class="btn" id="s_msBtn" style="flex:0 0 auto"></button></div>
+        <p class="hint"><a href="#" onclick="dlgS.close();openSetup();return false">Refaire la liaison avec Microsoft</a></p>
+        <div id="s_err"></div>
+      </fieldset>
+      <fieldset>
+        <label for="s_title">Nom du tableau</label><input id="s_title">
         <label>Thème</label>
         <div class="segmented" id="s_themeSeg"><button type="button" data-v="">Automatique</button><button type="button" data-v="light">Clair</button><button type="button" data-v="dark">Sombre</button></div>
       </fieldset>
-
       <fieldset>
-        <h4 class="lg">Compte Microsoft</h4>
-        <p class="legend-sub">Pour lire Outlook et les fichiers Excel SharePoint / OneDrive.</p>
-        <div class="row">
-          <div><label for="s_client">ID d'application (client)</label><input id="s_client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false"></div>
-        </div>
-        <label for="s_tenant">Annuaire (tenant)</label>
-        <select id="s_tenant">
-          <option value="organizations">Compte professionnel (Microsoft 365 de l'entreprise)</option>
-          <option value="consumers">Compte personnel (outlook.com, hotmail, live)</option>
-          <option value="common">Les deux</option>
-          <option value="custom">ID d'annuaire précis…</option>
-        </select>
-        <input id="s_tenantId" placeholder="ID d'annuaire (Directory ID)" style="margin-top:8px;display:none" spellcheck="false">
-        <ul class="diag" id="s_diag"></ul>
-        <label>Adresses à déclarer dans Azure (type « Application monopage / SPA »)</label>
-        <div class="copy"><code id="s_redirect1"></code><button class="btn sm" onclick="copyText('s_redirect1')">Copier</button></div>
-        <div class="copy" style="margin-top:6px"><code id="s_redirect2"></code><button class="btn sm" onclick="copyText('s_redirect2')">Copier</button></div>
-        <div id="s_err"></div>
-        <div class="row" style="margin-top:14px">
-          <button class="btn primary" id="s_msBtn" onclick="msToggle()">Se connecter</button>
-          <button class="btn" onclick="msTest()">Tester la connexion</button>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <h4 class="lg">Sources de données</h4>
+        <h4 class="lg">Sources</h4>
         <div id="s_list"></div>
-        <div class="row" style="margin-top:12px;align-items:center">
-          <select id="s_newType" aria-label="Type de source à ajouter"></select>
-          <button class="btn" onclick="editSource(null)" style="flex:0 0 auto">Ajouter</button>
-        </div>
       </fieldset>
-
-      <fieldset id="s_qargo">
-        <h4 class="lg">Qargo (webhooks)</h4>
-        <div id="s_qargoOn">
-          <p class="legend-sub">Adresse à donner à Qargo pour l'envoi des événements :</p>
-          <div class="copy"><code id="s_webhook"></code><button class="btn sm" onclick="copyText('s_webhook')">Copier</button></div>
-          <div class="row" style="margin-top:10px"><button class="btn" onclick="simulateQargo()">Envoyer des événements de test</button><button class="btn" onclick="showRaw()">Voir les événements reçus</button></div>
-        </div>
-        <p class="legend-sub" id="s_qargoOff">Pas de webhooks sur cet hébergement. Pour Qargo, utilise l'extension navigateur, ses mails (source Outlook) ou ses exports Excel.</p>
-      </fieldset>
-
       <fieldset>
         <h4 class="lg">Sauvegarde</h4>
-        <p class="legend-sub">La configuration est gardée dans ce navigateur. Exporte-la pour la copier sur un autre appareil.</p>
+        <p class="legend-sub">Ton tableau est gardé dans ce navigateur. Exporte-le pour le retrouver sur un autre PC ou téléphone.</p>
         <div class="row" style="margin-top:8px">
           <button class="btn" onclick="exportCfg()">Exporter</button>
           <button class="btn" onclick="document.getElementById('importFile').click()">Importer</button>
@@ -386,20 +436,13 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
   <div class="d-wrap">
     <div class="d-head"><h3 id="srcTitle">Source</h3><button class="btn ghost icon-only" onclick="dlgSrc.close()" aria-label="Fermer">✕</button></div>
     <div class="d-body" id="srcForm"></div>
-    <div class="d-foot"><button class="btn danger" id="srcDel" onclick="delSource()">Supprimer</button><span class="sp"></span><button class="btn primary" onclick="saveSource()">Enregistrer</button></div>
+    <div class="d-foot"><button class="btn danger" onclick="delSource()">Retirer</button><span class="sp"></span><button class="btn primary" onclick="saveSource()">Enregistrer</button></div>
   </div>
 </dialog>
 
-<dialog id="dlgRaw" class="drawer">
-  <div class="d-wrap">
-    <div class="d-head"><h3>Événements Qargo reçus</h3><button class="btn ghost icon-only" onclick="dlgRaw.close()" aria-label="Fermer">✕</button></div>
-    <div class="d-body"><pre id="rawPre"></pre></div>
-  </div>
-</dialog>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s)"></script>
 <script>
-/* Bibliothèque Microsoft : 3 adresses de secours si le réseau en bloque une */
 (function () {
   var urls = ["https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js",
               "https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js",
@@ -417,82 +460,25 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--p
 <script>
 "use strict";
 /* =====================================================================
-   CONFIGURATION PAR DÉFAUT
+   À REMPLIR UNE FOIS (facultatif) : l'ID d'application Microsoft.
+   S'il est rempli ici, personne n'a à le saisir dans l'app.
    ===================================================================== */
-var DEFAULT_CONFIG = {
-  title: "Dashboard Ops",
-  theme: "",
-  microsoft: { clientId: "", tenantId: "organizations" },
-  sources: [
-    { id: "demo", type: "demo", name: "Démo", interval: 15 },
-    { id: "qargo", type: "qargo", name: "Qargo", interval: 10 },
-    { id: "ext", type: "extension", name: "Extension", interval: 30 },
-    { id: "mail", type: "outlook", name: "Outlook", interval: 60, enabled: false, folder: "inbox", max: 50,
-      rules: [{ name: "Retards transport", match: { subject: "retard" },
-                extract: { camion: "camion\\s*:?\\s*([A-Z0-9-]+)", retard_min: "(\\d+)\\s*min" } }] }
-  ],
-  widgets: [
-    { id: "w1", title: "Camions en route", type: "kpi", source: "demo", dataset: "trajets", op: "count", where: { Statut: "En route" } },
-    { id: "w2", title: "Camions en retard", type: "kpi", source: "demo", dataset: "trajets", op: "count", where: { Statut: "Retard" }, alert_above: 2 },
-    { id: "w3", title: "Palettes à quai", type: "kpi", source: "demo", dataset: "quais", op: "sum", field: "Palettes" },
-    { id: "w4", title: "Mails non lus", type: "kpi", source: "demo", dataset: "inbox", op: "count", where: { unread: "true" } },
-    { id: "w5", title: "Stops Qargo en direct", type: "table", source: "qargo", dataset: "qargo_stops",
-      columns: ["heure", "commande", "client", "lieu", "activite", "statut", "eta", "vehicule"], highlight: { statut: "AT_STOP" }, size: "wide", limit: 25 },
-    { id: "w6", title: "Suivi des trajets", type: "table", source: "demo", dataset: "trajets",
-      columns: ["Camion", "Client", "Statut", "ETA", "Retard (min)"], highlight: { Statut: "Retard" }, size: "wide" },
-    { id: "w7", title: "Palettes par client", type: "bar", source: "demo", dataset: "quais", group: "Client", op: "sum", field: "Palettes", size: "medium" },
-    { id: "w8", title: "Derniers mails", type: "list", source: "demo", dataset: "inbox", line1: "subject", line2: "from", meta: "date", limit: 6, size: "medium" }
-  ]
-};
+var BUILTIN_CLIENT_ID = "";
+var BUILTIN_TENANT = "organizations";
 
-var TYPES = {
-  demo:        { label: "Démo (données fictives)", fields: [] },
-  outlook:     { label: "Boîte mail Outlook", ms: true, fields: [
-                  { k: "folder", l: "Dossier", d: "inbox", h: "inbox pour la boîte de réception, ou l'ID d'un dossier." },
-                  { k: "mailbox", l: "Boîte partagée (facultatif)", h: "ex. logistique@tml.be. Vide = ta boîte." },
-                  { k: "max", l: "Nombre de mails lus", d: 50, n: true },
-                  { k: "filter", l: "Filtre (facultatif)", h: "ex. isRead eq false pour les non lus seulement." },
-                  { k: "rules", l: "Règles d'extraction", json: true,
-                    h: "Chaque règle crée un jeu de données. match : le mail contient (from, subject, body). extract : expression régulière, le 1er groupe est gardé." } ] },
-  excel_sp:    { label: "Excel SharePoint / OneDrive / Teams", ms: true, fields: [
-                  { k: "shareLink", l: "Lien de partage du fichier", h: "Dans Excel : Partager › Copier le lien." },
-                  { k: "sheets", l: "Feuilles (facultatif, séparées par des virgules)" },
-                  { k: "headerRow", l: "Ligne des en-têtes", d: 1, n: true } ] },
-  excel_local: { label: "Excel sur ce PC / disque réseau", fields: [
-                  { k: "sheets", l: "Feuilles (facultatif, séparées par des virgules)" },
-                  { k: "headerRow", l: "Ligne des en-têtes", d: 1, n: true } ],
-                 note: "Chrome ou Edge uniquement. Le fichier est relu automatiquement sur cet appareil." },
-  extension:   { label: "Extension navigateur (Qargo, sites web)", fields: [],
-                 note: "Données récupérées par l'extension « Dashboard Ops – Connecteur ». Clique sur la pastille de la source pour forcer une mise à jour." },
-  qargo:       { label: "Qargo – webhooks (Netlify)", fields: [] },
-  qargo_res:   { label: "Qargo – flotte (API, Netlify)", fields: [], minInterval: 300 }
-};
-var MS_SCOPES = ["User.Read", "Mail.Read", "Mail.Read.Shared", "Files.Read.All", "Sites.Read.All"];
-
-/* Couleur automatique des statuts */
-var STATUS = [
-  [/^(retard|late|delayed|en retard|bloqu|blocked|erreur|error|failed|rejected|refus|annul|cancel|incident|manquant)/i, "bad"],
-  [/^(livr|delivered|completed|termin|done|ok|valid|accepted|cl[ôo]tur|parti|charg[ée]$|exp[ée]di)/i, "ok"],
-  [/^(en route|in_progress|in progress|en cours|at_stop|à quai|a quai|chargement|d[ée]chargement|loading|picking|pr[ée]paration)/i, "warn"],
-  [/^(planned|planifi|pr[ée]vu|scheduled|attente|waiting|pending|nouveau|new)/i, "info"]
-];
-function statusOf(v) {
-  if (typeof v !== "string" || v.length > 28) return null;
-  for (var i = 0; i < STATUS.length; i++) if (STATUS[i][0].test(v.trim())) return STATUS[i][1];
-  return null;
-}
-var STATUS_LABEL = { AT_STOP: "À quai", IN_PROGRESS: "En cours", COMPLETED: "Terminé", PLANNED: "Planifié", ACCEPTED: "Acceptée", REJECTED: "Refusée", PICKUP: "Enlèvement", DELIVERY: "Livraison" };
-
-/* =====================================================================
-   ÉTAT + OUTILS
-   ===================================================================== */
+var SCOPES = ["User.Read", "Mail.Read", "Files.Read.All", "Sites.Read.All"];
 var BASE = location.origin + location.pathname.replace(/[^\/]*$/, "");
-var cfg = null, online = true, serverError = "", sources = {}, timers = [], editing = null, editingSrc = null;
+var GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var DEFAULT_CONFIG = { title: "Dashboard Ops", theme: "", clientId: "", tenant: "organizations", sources: [], widgets: [] };
+
+var cfg, sources = {}, timers = [], editing = null, editingSrc = null;
 var $ = function (id) { return document.getElementById(id); };
 var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
-var dlgW = $("dlgW"), dlgS = $("dlgS"), dlgSrc = $("dlgSrc"), dlgKey = $("dlgKey"), dlgRaw = $("dlgRaw");
+var dlgW = $("dlgW"), dlgS = $("dlgS"), dlgSrc = $("dlgSrc"), dlgSetup = $("dlgSetup"), dlgAdd = $("dlgAdd");
 var ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+var MS_BTN = '<span class="ms-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
 
+/* ---------- outils ---------- */
 var toastTimer;
 function toast(msg, bad) {
   var t = $("toast"); t.textContent = msg; t.className = "toast show" + (bad ? " bad" : "");
@@ -500,44 +486,35 @@ function toast(msg, bad) {
 }
 function copyText(id) {
   var txt = $(id).textContent;
-  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { toast("Copié"); })
-    .catch(function () { var r = document.createRange(); r.selectNodeContents($(id)); getSelection().removeAllRanges(); getSelection().addRange(r); });
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { toast("Copié"); }).catch(function () {});
 }
-
-function api(path, opts) {
-  opts = opts || {};
-  opts.headers = Object.assign({ "x-app-key": localStorage.getItem("dash-key") || "" }, opts.headers || {});
-  return fetch(BASE + ".netlify/functions/" + path, opts).then(function (r) {
-    return r.json().catch(function () { return {}; }).then(function (d) {
-      if (r.status === 401) { askKey("Clé refusée."); throw new Error("Clé d'accès invalide"); }
-      if (r.status === 404 && path === "config") throw new Error("local");
-      if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
-      return d;
-    });
-  });
+var STATUS = [
+  [/^(retard|late|delayed|en retard|bloqu|blocked|erreur|error|failed|rejet|refus|annul|cancel|incident|manquant|urgent|haute)/i, "bad"],
+  [/^(livr|delivered|completed|termin|done|ok$|valid|accept|cl[ôo]tur|parti|exp[ée]di)/i, "ok"],
+  [/^(en route|in_progress|in progress|en cours|at_stop|à quai|a quai|chargement|d[ée]chargement|loading|picking|pr[ée]paration)/i, "warn"],
+  [/^(planned|planifi|pr[ée]vu|scheduled|attente|waiting|pending|nouveau|new|non lu)/i, "info"]
+];
+function statusOf(v) {
+  if (typeof v !== "string" || v.length > 28) return null;
+  for (var i = 0; i < STATUS.length; i++) if (STATUS[i][0].test(v.trim())) return STATUS[i][1];
+  return null;
 }
-
 var ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 function fmtDate(d) {
-  var today = new Date().toDateString() === d.toDateString();
   var hm = d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
-  return today ? hm : d.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" }) + " " + hm;
+  if (new Date().toDateString() === d.toDateString()) return hm;
+  return d.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" }) + (hm === "00:00" ? "" : " " + hm);
 }
 function fmt(v) {
   if (v instanceof Date) return fmtDate(v);
   if (typeof v === "string" && ISO.test(v)) { var d = new Date(v); if (!isNaN(d)) return fmtDate(d); }
   if (typeof v === "number") return v.toLocaleString("fr-BE");
   if (typeof v === "boolean") return v ? "oui" : "non";
-  if (typeof v === "string" && STATUS_LABEL[v]) return STATUS_LABEL[v];
   return v == null ? "" : v;
 }
-function cell(v) {
-  var s = statusOf(String(v == null ? "" : v));
-  return s ? '<span class="pill ' + s + '">' + esc(fmt(v)) + "</span>" : esc(fmt(v));
-}
-function num(v) { var n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+function cell(v) { var s = statusOf(String(v == null ? "" : v)); return s ? '<span class="pill ' + s + '">' + esc(fmt(v)) + "</span>" : esc(fmt(v)); }
+function num(v) { var n = parseFloat(String(v).replace(/\s/g, "").replace(",", ".")); return isNaN(n) ? 0 : n; }
 
-/* Horloge + équipe (3 × 8) */
 function tickClock() {
   var n = new Date(), h = n.getHours();
   $("clock").textContent = n.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
@@ -546,390 +523,348 @@ function tickClock() {
   $("shiftName").textContent = s[0]; $("shiftHours").textContent = s[1];
 }
 tickClock(); setInterval(tickClock, 5000);
-
-function applyTheme() {
-  if (cfg && cfg.theme) document.documentElement.setAttribute("data-theme", cfg.theme);
-  else document.documentElement.removeAttribute("data-theme");
-}
+function applyTheme() { if (cfg.theme) document.documentElement.setAttribute("data-theme", cfg.theme); else document.documentElement.removeAttribute("data-theme"); }
 
 /* =====================================================================
-   MICROSOFT (MSAL) + DIAGNOSTIC
+   CONNEXION MICROSOFT
    ===================================================================== */
-var msApp = null, msAccount = null, msNeedLogin = false, msLastError = null;
-var GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var msApp = null, account = null, lastError = null;
+function clientId() { return (BUILTIN_CLIENT_ID || cfg.clientId || "").trim(); }
+function tenant() { return BUILTIN_CLIENT_ID ? BUILTIN_TENANT : (cfg.tenant || "organizations"); }
 
 var MS_ERRORS = [
-  [/AADSTS50011|redirect_uri_mismatch|redirect URI/i, "Adresse de retour non déclarée",
-   "Dans Azure › ton application › Authentification › « Application monopage (SPA) », ajoute exactement les deux adresses affichées ci-dessus."],
-  [/AADSTS9002326|Cross-origin token redemption/i, "Adresse déclarée avec le mauvais type",
-   "L'adresse est enregistrée en type « Web ». Supprime-la et ajoute-la sous « Application monopage (SPA) »."],
-  [/AADSTS700016|not found in the directory/i, "ID d'application introuvable",
-   "Vérifie l'ID d'application (client) copié depuis Azure, et le choix de l'annuaire (professionnel / personnel)."],
-  [/AADSTS50020|AADSTS50194|AADSTS90072|does not exist in tenant|not multi-tenant/i, "Type de compte non accepté",
-   "Ton compte n'est pas du type prévu par l'application. Dans Azure › Authentification › « Types de comptes pris en charge », choisis le bon type, ou change l'annuaire ci-dessus (compte personnel / professionnel)."],
-  [/AADSTS65001|AADSTS90094|consent|admin approval|approbation/i, "Autorisation de l'administrateur nécessaire",
-   "L'entreprise interdit d'autoriser soi-même une application. Un administrateur Microsoft 365 doit cliquer sur « Accorder le consentement administrateur » dans Azure › API autorisées."],
-  [/AADSTS7000218|client_assertion|client_secret/i, "Flux public désactivé",
-   "Dans Azure › Authentification, l'adresse doit être sous « Application monopage (SPA) » (pas « Web »)."],
-  [/AADSTS90002|tenant .* not found|Tenant .* not found/i, "Annuaire introuvable",
-   "L'ID d'annuaire saisi est faux. Choisis « Compte professionnel » ou recopie le Directory (tenant) ID depuis Azure."],
-  [/popup_window_error|popup.*blocked|empty_window_error/i, "Fenêtre de connexion bloquée",
-   "Le navigateur a bloqué la fenêtre. Autorise les pop-ups pour ce site, ou réessaie : la connexion passera par une redirection."],
+  [/AADSTS50011|redirect_uri_mismatch|redirect URI/i, "L'adresse de l'app n'est pas déclarée chez Microsoft", "Refais les étapes 3 et 4 de la liaison : les deux adresses doivent être ajoutées sous « Application monopage (SPA) »."],
+  [/AADSTS9002326|Cross-origin token redemption/i, "Adresse déclarée avec le mauvais type", "Dans Authentification, l'adresse est sous « Web ». Supprime-la et ajoute-la sous « Application monopage (SPA) »."],
+  [/AADSTS700016|not found in the directory/i, "ID d'application inconnu", "Vérifie l'ID copié (Vue d'ensemble › ID d'application) et le type de compte choisi."],
+  [/AADSTS50020|AADSTS50194|AADSTS90072|does not exist in tenant|not multi-tenant|AADSTS700054/i, "Ce compte ne correspond pas au type choisi", "Refais la liaison en choisissant l'autre type de compte (professionnel / personnel)."],
+  [/AADSTS65001|AADSTS90094|consent|admin approval|approbation/i, "Ton entreprise demande l'accord d'un administrateur", "Seul un administrateur Microsoft 365 de TML peut autoriser l'app (bouton « Accorder un consentement d'administrateur »). Transmets-lui l'ID d'application."],
+  [/AADSTS53003|Conditional Access/i, "Bloqué par une règle de sécurité de l'entreprise", "Seule l'IT peut autoriser cette connexion."],
+  [/popup_window_error|empty_window_error/i, "Fenêtre de connexion bloquée", "Autorise les fenêtres pop-up pour ce site, ou réessaie."],
   [/user_cancelled|user_cancel/i, "Connexion annulée", "La fenêtre a été fermée avant la fin."],
-  [/interaction_in_progress/i, "Connexion déjà en cours", "Ferme les autres fenêtres de connexion puis réessaie."],
-  [/AADSTS50076|AADSTS50079|MFA|multi-factor/i, "Double authentification demandée", "Termine la validation sur ton téléphone puis réessaie."],
-  [/AADSTS53003|Conditional Access|conditional access/i, "Bloqué par la politique de l'entreprise",
-   "Une règle d'accès conditionnel interdit cette connexion (appareil non géré, lieu…). Seul l'IT peut l'autoriser."]
+  [/interaction_in_progress/i, "Une connexion est déjà en cours", "Ferme les autres fenêtres Microsoft et réessaie."]
 ];
-function explainMs(e) {
-  var raw = (e && (e.errorCode ? e.errorCode + " " : "") + (e.errorMessage || e.message || String(e))) || "Erreur inconnue";
+function explain(e) {
+  var raw = (e && ((e.errorCode ? e.errorCode + " " : "") + (e.errorMessage || e.message))) || String(e);
   for (var i = 0; i < MS_ERRORS.length; i++) if (MS_ERRORS[i][0].test(raw)) return { title: MS_ERRORS[i][1], fix: MS_ERRORS[i][2], raw: raw };
   return { title: "Connexion impossible", fix: "Envoie le message technique ci-dessous pour diagnostic.", raw: raw };
 }
-function tenantValue() { return (cfg.microsoft.tenantId || "organizations").trim(); }
+function errBox(e) { return e ? '<div class="errbox"><b>' + esc(e.title) + "</b>" + esc(e.fix) + "<code>" + esc(e.raw) + "</code></div>" : ""; }
 
 function msInit() {
-  msApp = null; msAccount = null;
-  if (!cfg.microsoft || !GUID.test(cfg.microsoft.clientId || "")) return Promise.resolve();
+  msApp = null; account = null;
+  if (!GUID.test(clientId())) return Promise.resolve();
   return window.msalReady.then(function (ok) {
-    if (!ok) return;
+    if (!ok) { lastError = { title: "Le module de connexion Microsoft n'a pas pu se charger", fix: "Vérifie ta connexion internet ou essaie un autre réseau.", raw: "msal-browser non chargé" }; return; }
     msApp = new msal.PublicClientApplication({
-      auth: { clientId: cfg.microsoft.clientId.trim(), authority: "https://login.microsoftonline.com/" + tenantValue(), redirectUri: BASE + "auth.html", navigateToLoginRequestUrl: false },
+      auth: { clientId: clientId(), authority: "https://login.microsoftonline.com/" + tenant(), redirectUri: BASE + "auth.html", navigateToLoginRequestUrl: false },
       cache: { cacheLocation: "localStorage" }
     });
     return msApp.handleRedirectPromise().then(function (r) {
-      if (r && r.account) { msAccount = r.account; toast("Connecté à Microsoft : " + r.account.username); }
-      msAccount = msAccount || msApp.getAllAccounts()[0] || null;
-    }).catch(function (e) { msLastError = explainMs(e); });
+      account = (r && r.account) || msApp.getAllAccounts()[0] || null;
+    }).catch(function (e) { lastError = explain(e); });
   });
 }
-function msLogin() {
-  if (!GUID.test(cfg.microsoft.clientId || "")) { toast("Renseigne d'abord l'ID d'application Microsoft dans les réglages.", true); openSettings(); return Promise.resolve(); }
-  if (window.msalLoadError) { msLastError = { title: "Bibliothèque Microsoft bloquée", fix: "Le réseau bloque le téléchargement du module de connexion Microsoft. Essaie un autre réseau ou demande à l'IT d'autoriser alcdn.msauth.net.", raw: "msal-browser non chargé" }; renderDiag(); toast(msLastError.title, true); return Promise.resolve(); }
-  if (!msApp) return msInit().then(msLogin);
-  msLastError = null;
-  return msApp.loginPopup({ scopes: MS_SCOPES, prompt: "select_account", redirectUri: BASE + "auth.html" }).then(function (r) {
-    msAccount = r.account; msNeedLogin = false; refreshBanner(); renderDiag(); startAll();
-    toast("Connecté à Microsoft : " + r.account.username);
+function login() {
+  if (!GUID.test(clientId())) { openSetup(); return Promise.resolve(); }
+  if (!msApp) return msInit().then(function () { if (msApp) return login(); render(); });
+  lastError = null;
+  return msApp.loginPopup({ scopes: SCOPES, prompt: "select_account" }).then(function (r) {
+    account = r.account; render(); startAll(); toast("Connecté : " + account.username);
+    if (!cfg.sources.length) setTimeout(openAdd, 400);
   }).catch(function (e) {
-    var info = explainMs(e);
-    if (/popup_window_error|empty_window_error/i.test(info.raw)) {
-      return msApp.loginRedirect({ scopes: MS_SCOPES, prompt: "select_account", redirectUri: BASE });
-    }
-    msLastError = info; renderDiag(); toast(info.title, true);
+    var info = explain(e);
+    if (/popup_window_error|empty_window_error/i.test(info.raw)) return msApp.loginRedirect({ scopes: SCOPES, prompt: "select_account", redirectUri: BASE });
+    lastError = info; render(); toast(info.title, true);
   });
 }
-function msToken() {
-  if (!msApp) return Promise.reject(new Error(GUID.test(cfg.microsoft.clientId || "") ? "Connexion Microsoft indisponible" : "Microsoft non configuré (Réglages)"));
-  if (!msAccount) { msNeedLogin = true; refreshBanner(); return Promise.reject(new Error("Connexion Microsoft requise")); }
-  return msApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount }).then(function (r) { return r.accessToken; })
-    .catch(function (e) {
-      msNeedLogin = true; refreshBanner();
-      var info = explainMs(e); if (!/interaction_required|login_required|consent/i.test(info.raw)) msLastError = info;
-      throw new Error("Session Microsoft à renouveler");
-    });
+function logout() {
+  if (msApp && account) msApp.logoutPopup({ account: account, postLogoutRedirectUri: BASE + "auth.html", mainWindowRedirectUri: BASE }).catch(function () {});
+  account = null; timers.forEach(clearInterval); render();
 }
-function graph(path, params) {
-  return msToken().then(function (tok) {
-    var url = new URL(path.indexOf("http") === 0 ? path : "https://graph.microsoft.com/v1.0" + path);
-    Object.keys(params || {}).forEach(function (k) { if (params[k] !== "" && params[k] != null) url.searchParams.set(k, params[k]); });
-    return fetch(url, { headers: { Authorization: "Bearer " + tok } });
+function token() {
+  if (!msApp || !account) return Promise.reject(new Error("Non connecté"));
+  return msApp.acquireTokenSilent({ scopes: SCOPES, account: account }).then(function (r) { return r.accessToken; })
+    .catch(function () { return msApp.acquireTokenPopup({ scopes: SCOPES, account: account }).then(function (r) { return r.accessToken; }); });
+}
+function graph(path, opts) {
+  opts = opts || {};
+  return token().then(function (tok) {
+    return fetch(path.indexOf("http") === 0 ? path : "https://graph.microsoft.com/v1.0" + path, {
+      method: opts.method || "GET", body: opts.body ? JSON.stringify(opts.body) : undefined,
+      headers: Object.assign({ Authorization: "Bearer " + tok }, opts.body ? { "Content-Type": "application/json" } : {})
+    });
   }).then(function (r) {
-    return r.json().then(function (d) {
-      if (!r.ok) throw new Error((d.error && d.error.message) || ("Graph HTTP " + r.status));
+    if (opts.raw) { if (!r.ok) throw new Error("HTTP " + r.status); return r; }
+    return r.json().catch(function () { return {}; }).then(function (d) {
+      if (!r.ok) throw new Error((d.error && d.error.message) || ("Microsoft a répondu " + r.status));
       return d;
     });
   });
 }
-function msTest() {
-  readMsForm();
-  var go = function () {
-    if (!msAccount) return msLogin().then(function () { if (msAccount) return msTest(); });
-    return graph("/me", { "$select": "displayName,mail,userPrincipalName" }).then(function (me) {
-      msLastError = null; renderDiag(); toast("Connexion OK : " + (me.displayName || me.userPrincipalName));
-    }).catch(function (e) { msLastError = explainMs(e); renderDiag(); toast(msLastError.title, true); });
-  };
-  return (msApp && msApp.config && msApp.config.auth.clientId === cfg.microsoft.clientId.trim() ? Promise.resolve() : msInit()).then(go);
+
+/* ---------- assistant de liaison ---------- */
+function openSetup() {
+  $("uri1").textContent = BASE + "auth.html"; $("uri2").textContent = BASE;
+  $("setupId").value = cfg.clientId || ""; $("setupTenant").value = cfg.tenant || "organizations";
+  $("setupErr").innerHTML = location.protocol === "file:" ? errBox({ title: "L'app doit être ouverte depuis son adresse en ligne", fix: "Microsoft refuse les fichiers ouverts directement depuis le PC. Ouvre l'app depuis son adresse GitHub Pages (voir le guide).", raw: location.href }) : "";
+  dlgSetup.showModal();
 }
-function readMsForm() {
-  cfg.microsoft.clientId = $("s_client").value.trim();
-  var t = $("s_tenant").value;
-  cfg.microsoft.tenantId = t === "custom" ? ($("s_tenantId").value.trim() || "organizations") : t;
-}
-function renderDiag() {
-  if (!dlgS.open) return;
-  var id = $("s_client").value.trim(), steps = [];
-  steps.push(window.msalLoadError ? ["bad", "Module de connexion Microsoft", "Bloqué par le réseau."] : ["ok", "Module de connexion Microsoft", "Chargé."]);
-  steps.push(!id ? ["todo", "ID d'application", "À coller depuis Azure › Inscriptions d'applications."]
-            : GUID.test(id) ? ["ok", "ID d'application", "Format correct."] : ["bad", "ID d'application", "Format incorrect : il ressemble à xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx."]);
-  steps.push(msAccount ? ["ok", "Connexion", msAccount.username] : ["todo", "Connexion", "Pas encore connecté."]);
-  $("s_diag").innerHTML = steps.map(function (s) {
-    return '<li class="' + s[0] + '"><span class="mk">' + (s[0] === "ok" ? "✓" : s[0] === "bad" ? "!" : "·") + "</span><span>" + esc(s[1]) + "<small>" + esc(s[2]) + "</small></span></li>";
-  }).join("");
-  $("s_err").innerHTML = msLastError ? '<div class="errbox"><b>' + esc(msLastError.title) + "</b>" + esc(msLastError.fix) + "<code>" + esc(msLastError.raw) + "</code></div>" : "";
-  $("s_msBtn").textContent = msAccount ? "Se déconnecter" : "Se connecter";
-}
-function shareId(link) {
-  var b = btoa(unescape(encodeURIComponent(link.trim())));
-  return "u!" + b.replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
+function finishSetup() {
+  var id = $("setupId").value.trim();
+  if (!GUID.test(id)) { $("setupErr").innerHTML = errBox({ title: "Cet ID n'a pas le bon format", fix: "Il ressemble à 1a2b3c4d-1234-5678-9abc-1a2b3c4d5e6f. Copie-le depuis Vue d'ensemble › ID d'application (client).", raw: id || "(vide)" }); return; }
+  cfg.clientId = id; cfg.tenant = $("setupTenant").value; persist();
+  dlgSetup.close(); msInit().then(login);
 }
 
 /* =====================================================================
-   CONNECTEURS (chacun renvoie { jeu_de_données: [lignes] })
+   SOURCES : mails et fichiers Excel
    ===================================================================== */
-function applyRules(messages, rules) {
+function textOf(html) { var d = new DOMParser().parseFromString(html || "", "text/html"); return d.body ? d.body.textContent : ""; }
+function applyRules(rows, rules) {
   var out = {};
   (rules || []).forEach(function (rule) {
-    var m = rule.match || {};
-    out[rule.name] = messages.filter(function (msg) {
-      return ["from", "subject", "body"].every(function (f) {
-        return !m[f] || String(msg[f] || "").toLowerCase().indexOf(String(m[f]).toLowerCase()) >= 0;
-      });
-    }).map(function (msg) {
-      var row = { date: msg.date, from: msg.from, subject: msg.subject }, text = msg.subject + "\n" + msg.body;
+    out[rule.name] = rows.filter(function (r) {
+      var m = rule.match || {};
+      return Object.keys(m).every(function (c) { return String(r[c] == null ? "" : r[c]).toLowerCase().indexOf(String(m[c]).toLowerCase()) >= 0; });
+    }).map(function (r) {
+      var text = Object.keys(r).map(function (k) { return r[k] == null ? "" : String(r[k]); }).join("\n"), row = Object.assign({}, r);
       Object.keys(rule.extract || {}).forEach(function (f) {
-        try { var x = new RegExp(rule.extract[f], "i").exec(text); row[f] = x ? (x[1] || x[0]).trim() : null; } catch (e) { row[f] = "regex invalide"; }
+        try { var x = new RegExp(rule.extract[f], "i").exec(text); row[f] = x ? (x[1] || x[0]).trim() : null; } catch (e) { row[f] = "règle invalide"; }
       });
       return row;
     });
   });
   return out;
 }
-function sheetsToDatasets(wb, src) {
-  var wanted = String(src.sheets || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-  var names = wanted.length ? wanted : wb.SheetNames, hr = Math.max(1, parseInt(src.headerRow || 1, 10)), out = {};
-  names.forEach(function (name) {
-    var ws = wb.Sheets[name];
-    if (!ws) { out[name] = []; return; }
-    var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false });
-    var head = (rows[hr - 1] || []).map(function (h, i) { return h == null || h === "" ? "col" + (i + 1) : String(h).trim(); });
-    out[name] = rows.slice(hr).filter(function (r) { return r.some(function (v) { return v != null && v !== ""; }); })
-      .map(function (r) { var o = {}; head.forEach(function (h, i) { o[h] = r[i] instanceof Date ? r[i].toISOString() : r[i]; }); return o; });
-  });
-  return out;
-}
-function needXlsx() { if (!window.XLSX) throw new Error("Module Excel non chargé (réseau)"); }
-
-var CONNECTORS = {
-  demo: function () {
-    var C = ["Chaussea", "Nike", "H&M", "INDITEX", "ZEB"], S = ["En route", "À quai", "Chargement", "Retard", "Livré"], now = Date.now(), rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
-    var trajets = [], quais = [], inbox = [];
-    for (var i = 0; i < 12; i++) { var st = rnd(S); trajets.push({ Camion: "TR-" + (100 + i), Client: rnd(C), Statut: st, ETA: new Date(now + Math.random() * 4 * 3600e3).toISOString(), "Retard (min)": st === "Retard" ? 10 + Math.floor(Math.random() * 80) : 0 }); }
-    for (var q = 1; q <= 8; q++) quais.push({ Quai: "Q" + q, Client: rnd(C), Palettes: Math.floor(Math.random() * 34) });
-    for (var m = 0; m < 10; m++) inbox.push({ date: new Date(now - m * 7 * 60e3).toISOString(), from: rnd(["Transports Dupont", "Planning Nike", "Quai Hornu"]), subject: rnd(["Retard camion TR-1" + m, "Nouvelle commande", "Confirmation d'enlèvement", "Écart d'inventaire"]), unread: m < 4 });
-    return Promise.resolve({ trajets: trajets, quais: quais, inbox: inbox });
-  },
-  outlook: function (src) {
-    var base = src.mailbox ? "/users/" + encodeURIComponent(src.mailbox) : "/me";
-    return graph(base + "/mailFolders/" + encodeURIComponent(src.folder || "inbox") + "/messages", {
-      "$top": src.max || 50, "$orderby": "receivedDateTime desc", "$filter": src.filter || "",
-      "$select": "receivedDateTime,from,subject,body,isRead,hasAttachments,importance"
-    }).then(function (d) {
-      var msgs = (d.value || []).map(function (m) {
-        var body = (m.body && m.body.content) || "";
-        if (m.body && m.body.contentType === "html") { var doc = new DOMParser().parseFromString(body, "text/html"); body = doc.body ? doc.body.textContent : ""; }
-        return { date: m.receivedDateTime, from: (m.from && m.from.emailAddress && (m.from.emailAddress.name || m.from.emailAddress.address)) || "",
-                 subject: m.subject || "(sans objet)", body: body.slice(0, 5000), unread: !m.isRead, pj: !!m.hasAttachments, important: m.importance === "high" };
+var READERS = {
+  mail: function (src) {
+    var q = "?$top=" + (src.max || 100) + "&$orderby=receivedDateTime desc&$select=receivedDateTime,from,subject,bodyPreview,isRead,importance,hasAttachments" +
+            ((src.rules || []).length ? ",body" : "") + (src.unread ? "&$filter=isRead eq false" : "");
+    return graph("/me/mailFolders/" + encodeURIComponent(src.folder || "inbox") + "/messages" + q).then(function (d) {
+      var rows = (d.value || []).map(function (m) {
+        var from = (m.from && m.from.emailAddress) || {};
+        return { "Reçu": m.receivedDateTime, "De": from.name || from.address || "", "Adresse": from.address || "", "Objet": m.subject || "(sans objet)",
+                 "Aperçu": m.bodyPreview || "", "Lu": m.isRead ? "Lu" : "Non lu", "Important": m.importance === "high" ? "Haute" : "", "Pièce jointe": m.hasAttachments ? "oui" : "",
+                 _body: m.body ? textOf(m.body.content) : "" };
+      }).filter(function (r) {
+        return (!src.from || (r.De + " " + r.Adresse).toLowerCase().indexOf(src.from.toLowerCase()) >= 0) &&
+               (!src.subject || r.Objet.toLowerCase().indexOf(src.subject.toLowerCase()) >= 0);
       });
-      var out = { inbox: msgs.map(function (m) { return { date: m.date, from: m.from, subject: m.subject, unread: m.unread, pj: m.pj, important: m.important }; }) };
-      return Object.assign(out, applyRules(msgs, src.rules));
+      var extra = applyRules(rows.map(function (r) { var o = Object.assign({}, r, { "Texte": r._body }); delete o._body; return o; }), src.rules);
+      rows.forEach(function (r) { delete r._body; });
+      var out = { "Mails": rows }; Object.keys(extra).forEach(function (k) { extra[k].forEach(function (r) { delete r.Texte; }); out[k] = extra[k]; });
+      return out;
     });
   },
-  excel_sp: function (src) {
-    if (!src.shareLink) return Promise.reject(new Error("Lien de partage manquant"));
-    return graph("/shares/" + shareId(src.shareLink) + "/driveItem", { "$select": "name,@microsoft.graph.downloadUrl" })
-      .then(function (item) {
-        var url = item["@microsoft.graph.downloadUrl"];
-        if (!url) throw new Error("Fichier introuvable ou non accessible");
-        return fetch(url);
-      }).then(function (r) { return r.arrayBuffer(); })
-      .then(function (buf) { needXlsx(); return sheetsToDatasets(XLSX.read(buf, { type: "array", cellDates: true }), src); });
-  },
-  excel_local: function (src) {
-    return getHandle(src.id).then(function (h) {
-      if (!h) throw new Error("Aucun fichier choisi");
-      return h.queryPermission({ mode: "read" }).then(function (p) {
-        if (p !== "granted") { var e = new Error("Clique pour réautoriser le fichier"); e.reauth = true; throw e; }
-        return h.getFile();
+  excel: function (src) {
+    var st = sources[src.id] || {};
+    return graph("/drives/" + src.driveId + "/items/" + src.itemId).then(function (meta) {
+      if (st.datasets && st.etag === meta.eTag) return null; // fichier inchangé
+      var url = meta["@microsoft.graph.downloadUrl"];
+      if (!url) throw new Error("Fichier introuvable ou accès retiré");
+      st.etag = meta.eTag;
+      return fetch(url).then(function (r) { if (!r.ok) throw new Error("Téléchargement impossible (" + r.status + ")"); return r.arrayBuffer(); });
+    }).then(function (buf) {
+      if (!buf) return null;
+      if (!window.XLSX) throw new Error("Module Excel non chargé : vérifie la connexion internet");
+      var wb = XLSX.read(buf, { type: "array", cellDates: true }), out = {}, hr = Math.max(1, parseInt(src.headerRow || 1, 10));
+      wb.SheetNames.forEach(function (name) {
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null, blankrows: false });
+        var head = (rows[hr - 1] || []).map(function (h, i) { return h == null || h === "" ? "Colonne " + (i + 1) : String(h).trim(); });
+        out[name] = rows.slice(hr).filter(function (r) { return r.some(function (v) { return v != null && v !== ""; }); })
+          .map(function (r) { var o = {}; head.forEach(function (h, i) { o[h] = r[i] instanceof Date ? r[i].toISOString() : r[i]; }); return o; });
       });
-    }).then(function (f) { return f.arrayBuffer(); })
-      .then(function (buf) { needXlsx(); return sheetsToDatasets(XLSX.read(buf, { type: "array", cellDates: true }), src); });
-  },
-  extension: function () {
-    if (ext.linked === null) return Promise.reject(new Error("Non installée ou page à recharger"));
-    if (!ext.linked) return Promise.reject(new Error("Dashboard à associer dans l'extension"));
-    var out = {}, etat = [];
-    Object.keys(ext.datasets || {}).forEach(function (k) {
-      var d = ext.datasets[k];
-      out[k] = d.rows || [];
-      etat.push({ source: k, lignes: (d.rows || []).length, maj: d.updated ? new Date(d.updated).toISOString() : null, statut: d.error ? "Erreur" : "OK", detail: d.error || "" });
+      var all = []; Object.keys(out).forEach(function (k) { all = all.concat(out[k]); });
+      return Object.assign(out, applyRules(all, src.rules));
     });
-    out.sources_extension = etat;
-    return Promise.resolve(out);
-  },
-  qargo: function () { return api("qargo-data").then(function (d) { return d.datasets; }); },
-  qargo_res: function () { return api("qargo-api?what=resources").then(function (d) { return d.datasets; }); }
+  }
 };
-
-/* Extension navigateur */
-var ext = { linked: null, datasets: null };
-window.addEventListener("message", function (e) {
-  if (e.source !== window || !e.data || !e.data.__dashOpsExt) return;
-  ext.linked = e.data.linked; ext.datasets = e.data.datasets;
-  if (cfg) cfg.sources.forEach(function (s) { if (s.type === "extension" && s.enabled !== false) tick(s); });
-});
-function extRefresh() { window.postMessage({ __dashOpsRefresh: true }, location.origin); toast("Mise à jour demandée à l'extension"); }
-window.postMessage({ __dashOpsHello: true }, location.origin);
-
-/* Fichiers locaux (poignées gardées dans IndexedDB) */
-function idb() {
-  return new Promise(function (ok, ko) {
-    var r = indexedDB.open("dash-files", 1);
-    r.onupgradeneeded = function () { r.result.createObjectStore("h"); };
-    r.onsuccess = function () { ok(r.result); }; r.onerror = function () { ko(r.error); };
-  });
-}
-function getHandle(id) { return idb().then(function (db) { return new Promise(function (ok) { var q = db.transaction("h").objectStore("h").get(id); q.onsuccess = function () { ok(q.result); }; q.onerror = function () { ok(null); }; }); }); }
-function setHandle(id, h) { return idb().then(function (db) { return new Promise(function (ok) { var t = db.transaction("h", "readwrite"); t.objectStore("h").put(h, id); t.oncomplete = ok; }); }); }
-function pickFile(id) {
-  if (!window.showOpenFilePicker) { toast("Ce navigateur ne peut pas suivre un fichier local : utilise Chrome ou Edge, ou un lien SharePoint.", true); return; }
-  showOpenFilePicker({ types: [{ description: "Excel / CSV", accept: { "application/vnd.ms-excel": [".xlsx", ".xlsm", ".xls", ".csv"] } }] })
-    .then(function (hs) { return setHandle(id, hs[0]).then(function () { $("pickedName").textContent = hs[0].name; }); })
-    .catch(function () {});
-}
-function reauth(id) {
-  getHandle(id).then(function (h) { return h && h.requestPermission({ mode: "read" }); }).then(function () { tick(srcById(id)); });
-}
-
-/* =====================================================================
-   RAFRAÎCHISSEMENT
-   ===================================================================== */
 function srcById(id) { return cfg.sources.filter(function (s) { return s.id === id; })[0]; }
 function tick(src) {
-  if (!src || src._busy) return;
+  if (!src || src._busy || !account) return;
   src._busy = true;
   var st = sources[src.id] = sources[src.id] || {};
-  st.name = src.name;
-  CONNECTORS[src.type](src).then(function (data) {
-    st.datasets = data; st.error = null; st.reauth = false; st.updated = new Date();
+  READERS[src.kind](src).then(function (data) {
+    if (data) { st.datasets = data; }
+    st.error = null; st.at = new Date();
   }).catch(function (e) {
-    st.error = e.message; st.reauth = !!e.reauth; st.updated = new Date();
+    var info = explain(e); st.error = /^Connexion impossible$/.test(info.title) ? e.message : info.title; st.at = new Date();
   }).then(function () { src._busy = false; render(); });
 }
 function startAll() {
   timers.forEach(clearInterval); timers = [];
-  Object.keys(sources).forEach(function (k) { if (!srcById(k) || srcById(k).enabled === false) delete sources[k]; });
+  if (!account) return render();
+  Object.keys(sources).forEach(function (k) { if (!srcById(k)) delete sources[k]; });
   cfg.sources.forEach(function (src) {
-    if (src.enabled === false || !CONNECTORS[src.type]) return;
-    if ((src.type === "qargo" || src.type === "qargo_res") && !online) return;
-    var every = Math.max((TYPES[src.type] && TYPES[src.type].minInterval) || 5, parseInt(src.interval || 60, 10)) * 1000;
-    sources[src.id] = sources[src.id] || { name: src.name };
+    sources[src.id] = sources[src.id] || {};
     tick(src);
-    timers.push(setInterval(function () { tick(src); }, every));
+    timers.push(setInterval(function () { tick(src); }, Math.max(15, parseInt(src.interval || 60, 10)) * 1000));
   });
   render();
+}
+document.addEventListener("visibilitychange", function () { if (!document.hidden && cfg && account) cfg.sources.forEach(tick); });
+
+/* =====================================================================
+   AJOUTER DES INFOS
+   ===================================================================== */
+var addState = { kind: null, file: null };
+function openAdd() {
+  if (!account) { login(); return; }
+  addState = { kind: null, file: null };
+  $("chMail").setAttribute("aria-pressed", "false"); $("chXl").setAttribute("aria-pressed", "false");
+  $("addMail").hidden = true; $("addXl").hidden = true; $("addGo").disabled = true;
+  dlgAdd.showModal();
+}
+function addKind(k) {
+  addState.kind = k;
+  $("chMail").setAttribute("aria-pressed", k === "mail" ? "true" : "false"); $("chXl").setAttribute("aria-pressed", k === "excel" ? "true" : "false");
+  $("addMail").hidden = k !== "mail"; $("addXl").hidden = k !== "excel";
+  if (k === "mail") {
+    $("addGo").disabled = false; $("m_name").value = ""; $("m_from").value = ""; $("m_subject").value = ""; $("m_unread").checked = false; $("m_preview").textContent = "";
+    graph("/me/mailFolders?$top=100&$select=id,displayName,totalItemCount").then(function (d) {
+      $("m_folder").innerHTML = (d.value || []).map(function (f) { return '<option value="' + esc(f.id) + '"' + (/^(inbox|boîte de réception)$/i.test(f.displayName) ? " selected" : "") + ">" + esc(f.displayName) + "</option>"; }).join("");
+    }).catch(function () {});
+  } else { $("addGo").disabled = true; $("x_q").value = ""; searchFiles(""); setTimeout(function () { $("x_q").focus(); }, 50); }
+}
+var searchTimer;
+$("x_q").addEventListener("input", function () { clearTimeout(searchTimer); var q = this.value; searchTimer = setTimeout(function () { searchFiles(q); }, 350); });
+function fileRow(f) {
+  var where = f.where ? " — " + f.where : "";
+  return '<li><button type="button" data-d="' + esc(f.driveId) + '" data-i="' + esc(f.id) + '" data-n="' + esc(f.name) + '"><span class="xl">X</span><span><b>' + esc(f.name) + "</b><small>" +
+    esc(f.modified ? "Modifié " + fmt(f.modified) : "") + esc(where) + "</small></span></button></li>";
+}
+function searchFiles(q) {
+  $("x_list").innerHTML = '<li><div class="skeleton"></div></li>'; $("x_hint").textContent = "";
+  var isXl = function (n) { return /\.(xlsx|xlsm|xls|csv)$/i.test(n || ""); };
+  // 1) Recherche Microsoft (OneDrive + SharePoint + Teams) ; 2) secours : OneDrive seul
+  graph("/search/query", { method: "POST", body: { requests: [{ entityTypes: ["driveItem"], query: { queryString: (q ? q + " " : "") + "(filetype:xlsx OR filetype:xlsm OR filetype:xls OR filetype:csv)" }, from: 0, size: 25 }] } })
+    .then(function (d) {
+      var hits = (((d.value || [])[0] || {}).hitsContainers || [])[0] || {};
+      return (hits.hits || []).map(function (h) { var r = h.resource || {}; return { id: r.id, driveId: r.parentReference && r.parentReference.driveId, name: r.name, modified: r.lastModifiedDateTime, where: r.parentReference && r.parentReference.siteId ? "SharePoint / Teams" : "OneDrive" }; });
+    })
+    .catch(function () {
+      return graph(q ? "/me/drive/root/search(q='" + encodeURIComponent(q.replace(/'/g, "''")) + "')?$top=50" : "/me/drive/recent?$top=50").then(function (d) {
+        return (d.value || []).map(function (r) { var it = r.remoteItem || r; return { id: it.id, driveId: it.parentReference && it.parentReference.driveId, name: it.name || r.name, modified: it.lastModifiedDateTime || r.lastModifiedDateTime, where: "OneDrive" }; });
+      });
+    })
+    .then(function (files) {
+      files = files.filter(function (f) { return f.id && f.driveId && isXl(f.name); });
+      $("x_list").innerHTML = files.length ? files.map(fileRow).join("") : '<li class="empty">Aucun fichier Excel trouvé' + (q ? " pour « " + esc(q) + " »" : "") + ".</li>";
+      $("x_hint").textContent = files.length ? "Clique sur un fichier pour le choisir." : "";
+      $("x_list").querySelectorAll("button").forEach(function (b) {
+        b.onclick = function () {
+          $("x_list").querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+          b.setAttribute("aria-pressed", "true");
+          addState.file = { driveId: b.dataset.d, itemId: b.dataset.i, name: b.dataset.n }; $("addGo").disabled = false;
+        };
+      });
+    })
+    .catch(function (e) { $("x_list").innerHTML = '<li class="empty err">' + esc(explain(e).title + " : " + e.message) + "</li>"; });
+}
+function confirmAdd() {
+  var id = "s" + Date.now(), src, w;
+  if (addState.kind === "mail") {
+    var folderName = $("m_folder").selectedOptions[0] ? $("m_folder").selectedOptions[0].textContent : "Mails";
+    var name = $("m_name").value.trim() || ($("m_subject").value || $("m_from").value ? "Mails « " + ($("m_subject").value || $("m_from").value) + " »" : folderName);
+    src = { id: id, kind: "mail", name: name, folder: $("m_folder").value || "inbox", from: $("m_from").value.trim(), subject: $("m_subject").value.trim(), unread: $("m_unread").checked, interval: 60, max: 100, rules: [] };
+    w = { id: "w" + Date.now(), title: name, type: "list", source: id, dataset: "Mails", line1: "Objet", line2: "De", meta: "Reçu", limit: 8, size: "medium" };
+    var k = { id: "w" + (Date.now() + 1), title: name + " (nombre)", type: "kpi", source: id, dataset: "Mails", op: "count" };
+    cfg.widgets.unshift(k);
+  } else if (addState.kind === "excel" && addState.file) {
+    var nm = addState.file.name.replace(/\.(xlsx|xlsm|xls|csv)$/i, "");
+    src = { id: id, kind: "excel", name: nm, driveId: addState.file.driveId, itemId: addState.file.itemId, interval: 60, headerRow: 1, rules: [] };
+    w = { id: "w" + Date.now(), title: nm, type: "table", source: id, dataset: "", size: "wide", limit: 50, _auto: true };
+  } else return;
+  cfg.sources.push(src); cfg.widgets.push(w); persist();
+  dlgAdd.close(); startAll(); toast("« " + src.name + " » ajouté. Clique sur le crayon d'un bloc pour choisir ce qui s'affiche.");
 }
 
 /* =====================================================================
    RENDU
    ===================================================================== */
+function matchRow(r, cond) { return Object.keys(cond).every(function (k) { return String(r[k] == null ? "" : r[k]).toLowerCase().indexOf(String(cond[k]).toLowerCase()) >= 0; }); }
 function rowsOf(w) {
   var s = sources[w.source]; if (!s || !s.datasets) return null;
+  if (!w.dataset || !s.datasets[w.dataset]) { var first = Object.keys(s.datasets)[0]; if (!first) return []; w.dataset = first; persistQuiet(); }
   var rows = s.datasets[w.dataset] || [];
-  if (w.where) rows = rows.filter(function (r) {
-    return Object.keys(w.where).every(function (k) { return String(r[k]).toLowerCase() === String(w.where[k]).toLowerCase(); });
-  });
-  return rows;
+  return w.where ? rows.filter(function (r) { return matchRow(r, w.where); }) : rows;
 }
 function agg(rows, op, field) {
   if (op === "count" || !field) return rows.length;
-  var v = rows.map(function (r) { return num(r[field]); });
-  if (!v.length) return 0;
+  var v = rows.map(function (r) { return num(r[field]); }); if (!v.length) return 0;
   var sum = v.reduce(function (a, b) { return a + b; }, 0);
   return op === "sum" ? Math.round(sum * 100) / 100 : op === "avg" ? Math.round(sum / v.length * 10) / 10 : op === "max" ? Math.max.apply(null, v) : Math.min.apply(null, v);
 }
-function describe(w) {
-  var src = srcById(w.source), parts = [src ? src.name : w.source];
-  if (w.where) { var k = Object.keys(w.where)[0]; parts.push(k + " = " + w.where[k]); }
-  return parts.join(", ");
-}
 function emptyState(w) {
-  var s = sources[w.source], src = srcById(w.source);
-  if (!src) return '<div class="empty err">Source supprimée. Modifie ce widget pour en choisir une autre.</div>';
-  if (src.enabled === false) return '<div class="empty">Source désactivée dans les réglages.</div>';
+  var s = sources[w.source];
+  if (!srcById(w.source)) return '<div class="empty err">Source retirée. Modifie ce bloc pour en choisir une autre.</div>';
   if (s && s.error) return '<div class="empty err">' + esc(s.error) + "</div>";
   return '<div class="skeleton"></div><div class="skeleton" style="width:60%"></div>';
 }
 function editBtn(w) { return '<button class="edit" onclick="openEditor(\'' + esc(w.id) + '\')" aria-label="Modifier ' + esc(w.title) + '">' + ICON_EDIT + "</button>"; }
-
 function renderWidget(w) {
   var rows = rowsOf(w), cls = "w w-" + esc(w.type) + " " + esc(w.size || "");
   if (w.type === "kpi") {
     if (rows === null) return '<div class="' + cls + '"><div class="kpi">' + editBtn(w) + '<div class="label">' + esc(w.title) + "</div>" + emptyState(w) + "</div></div>";
     var v = agg(rows, w.op, w.field), alert = w.alert_above != null && w.alert_above !== "" && v > w.alert_above;
-    return '<div class="' + cls + '"><div class="kpi' + (alert ? " alert" : "") + '">' + editBtn(w) +
-      '<div class="label">' + esc(w.title) + '</div><div class="value">' + esc(fmt(v)) + '</div><div class="sub">' +
-      (alert ? "Au-dessus du seuil de " + esc(fmt(w.alert_above)) : esc((srcById(w.source) || {}).name || "")) + "</div></div></div>";
+    return '<div class="' + cls + '"><div class="kpi' + (alert ? " alert" : "") + '">' + editBtn(w) + '<div class="label">' + esc(w.title) + '</div><div class="value">' + esc(fmt(v)) +
+      '</div><div class="sub">' + (alert ? "Au-dessus du seuil de " + esc(fmt(w.alert_above)) : esc((srcById(w.source) || {}).name || "")) + "</div></div></div>";
   }
   var head = '<div class="panel-h"><h2>' + esc(w.title) + "</h2>" + (rows ? '<span class="count">' + rows.length + " ligne" + (rows.length > 1 ? "s" : "") + "</span>" : "") + editBtn(w) + "</div>", body;
   if (rows === null) body = emptyState(w);
-  else if (!rows.length) body = '<div class="empty">Aucune ligne pour le moment.</div>';
+  else if (!rows.length) body = '<div class="empty">Rien à afficher pour le moment.</div>';
   else if (w.type === "table") {
     var cols = w.columns && w.columns.length ? w.columns : Object.keys(rows[0] || {});
-    var list = w.limit ? rows.slice(0, w.limit) : rows;
     body = '<div class="tw"><table><thead><tr>' + cols.map(function (c) { return '<th scope="col">' + esc(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
-      list.map(function (r) {
-        var hl = w.highlight && Object.keys(w.highlight).some(function (k) { return String(r[k]).toLowerCase() === String(w.highlight[k]).toLowerCase(); });
-        return "<tr" + (hl ? ' class="hl"' : "") + ">" + cols.map(function (c) { return "<td>" + cell(r[c]) + "</td>"; }).join("") + "</tr>";
+      (w.limit ? rows.slice(0, w.limit) : rows).map(function (r) {
+        return "<tr" + (w.highlight && matchRow(r, w.highlight) ? ' class="hl"' : "") + ">" + cols.map(function (c) { return "<td>" + cell(r[c]) + "</td>"; }).join("") + "</tr>";
       }).join("") + "</tbody></table></div>";
   } else if (w.type === "bar") {
     var g = {};
     rows.forEach(function (r) { var k = r[w.group] == null || r[w.group] === "" ? "(vide)" : r[w.group]; (g[k] = g[k] || []).push(r); });
     var data = Object.keys(g).map(function (k) { return [k, agg(g[k], w.op, w.field)]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 15);
     var max = Math.max.apply(null, data.map(function (d) { return d[1]; }).concat([1]));
-    body = '<div class="bars">' + data.map(function (d) {
-      return '<div class="bar"><span class="name" title="' + esc(d[0]) + '">' + esc(fmt(d[0])) + '</span><span class="track"><span class="fill" style="width:' + Math.max(0, d[1] / max * 100) + '%"></span></span><b>' + esc(fmt(d[1])) + "</b></div>";
-    }).join("") + "</div>";
+    body = '<div class="bars">' + data.map(function (d) { return '<div class="bar"><span class="name" title="' + esc(d[0]) + '">' + esc(fmt(d[0])) + '</span><span class="track"><span class="fill" style="width:' + Math.max(0, d[1] / max * 100) + '%"></span></span><b>' + esc(fmt(d[1])) + "</b></div>"; }).join("") + "</div>";
   } else {
     body = '<ul class="items">' + rows.slice(0, w.limit || 8).map(function (r) {
-      var st = statusOf(String(r[w.line1] || "")) || statusOf(String(r.statut || r.Statut || r.status || "")), dot = st || (r.unread === true ? "new" : "");
-      return '<li class="item"><span class="dot ' + dot + '"></span><div style="min-width:0"><div class="t1">' + esc(fmt(r[w.line1])) + '</div><div class="t2">' + esc(fmt(r[w.line2])) + "</div></div><time>" + esc(fmt(r[w.meta])) + "</time></li>";
+      var st = r.Lu === "Non lu" ? "new" : (r.Important ? "bad" : statusOf(String(r[w.line1] || "")) || statusOf(String(r.Statut || r.statut || "")) || "");
+      return '<li class="item"><span class="dot ' + st + '"></span><div style="min-width:0"><div class="t1">' + esc(fmt(r[w.line1])) + '</div><div class="t2">' + esc(fmt(r[w.line2])) + "</div></div><time>" + esc(fmt(r[w.meta])) + "</time></li>";
     }).join("") + "</ul>";
   }
   return '<div class="' + cls + '"><section class="panel">' + head + '<div class="panel-b">' + body + "</div></section></div>";
 }
 function render() {
-  if (!cfg) return;
-  $("grid").innerHTML = cfg.widgets.length ? cfg.widgets.map(renderWidget).join("") :
-    '<div class="first"><h2>Ton tableau est vide</h2><p>Ajoute un premier widget : un chiffre, un tableau, des barres ou une liste.</p><button class="btn primary" onclick="openEditor()">Ajouter un widget</button></div>';
-  $("sources").innerHTML = Object.keys(sources).map(function (k) {
-    var s = sources[k], src = srcById(k), t = s.updated ? s.updated.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" }) : "";
-    var act = s.reauth ? "reauth('" + esc(k) + "')" : src && src.type === "extension" ? "extRefresh()" : "";
-    var tag = act ? "button" : "span";
-    return "<" + tag + ' class="src' + (s.error ? " err" : s.updated ? "" : " wait") + '"' + (act ? ' onclick="' + act + '"' : "") + ' title="' + esc(s.error || (act ? "Mettre à jour maintenant" : "")) + '"><span class="led"></span>' +
-      esc(s.name || k) + (s.error ? " : " + esc(s.reauth ? "à autoriser" : s.error.length < 40 ? s.error.charAt(0).toLowerCase() + s.error.slice(1) : "erreur") : t ? " <time>" + t + "</time>" : "") + "</" + tag + ">";
-  }).join("");
-}
-function refreshBanner() {
+  $("addBtn").hidden = !account;
   var b = $("notice");
-  if (msNeedLogin && msApp) { $("noticeTxt").innerHTML = "<strong>Connexion Microsoft à renouveler</strong>Les mails et fichiers SharePoint ne se mettent plus à jour."; $("noticeBtn").textContent = "Se connecter"; $("noticeBtn").onclick = msLogin; b.className = "notice show"; }
-  else if (serverError) { $("noticeTxt").innerHTML = "<strong>Serveur mal configuré</strong>" + esc(serverError); $("noticeBtn").textContent = "Recharger"; $("noticeBtn").onclick = function () { location.reload(); }; b.className = "notice show"; }
-  else b.className = "notice";
+  if (!account) {
+    $("sources").innerHTML = "";
+    var configured = GUID.test(clientId());
+    $("grid").innerHTML = '<div class="welcome"><div class="welcome-in"><h2>Tes mails et tes fichiers Excel, sur un seul écran</h2>' +
+      "<p>Connecte-toi avec ton compte Microsoft, puis choisis ce que tu veux voir. Tout se met à jour automatiquement.</p>" +
+      '<button class="btn primary big" onclick="login()">' + MS_BTN + "Se connecter avec Microsoft</button>" +
+      (configured ? "" : '<p class="hint" style="margin-top:14px">Première utilisation : une étape de liaison de 3 minutes te sera proposée.</p>') +
+      (lastError ? '<div style="text-align:left;margin-top:18px">' + errBox(lastError) + "</div>" : "") + "</div></div>";
+    b.className = "notice"; return;
+  }
+  $("grid").innerHTML = cfg.widgets.length ? cfg.widgets.map(renderWidget).join("") :
+    '<div class="welcome"><div class="welcome-in"><h2>Que veux-tu voir ?</h2><p>Ajoute tes mails Outlook ou un fichier Excel. Tu pourras ensuite choisir les colonnes, les filtres et la forme.</p><button class="btn primary big" onclick="openAdd()">Ajouter des infos</button></div></div>';
+  $("sources").innerHTML = cfg.sources.map(function (src) {
+    var s = sources[src.id] || {}, t = s.at ? s.at.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" }) : "";
+    return '<button class="src' + (s.error ? " err" : s.datasets ? "" : " wait") + '" onclick="tick(srcById(\'' + esc(src.id) + '\'))" title="' + esc(s.error || "Actualiser maintenant") + '"><span class="led"></span>' +
+      esc(src.name) + (s.error ? " : erreur" : t ? " <time>" + t + "</time>" : "") + "</button>";
+  }).join("");
+  b.className = "notice";
 }
 
 /* =====================================================================
    SAUVEGARDE
    ===================================================================== */
 function cleanCfg() { return JSON.parse(JSON.stringify(cfg, function (k, v) { return k.charAt(0) === "_" ? undefined : v; })); }
-function persist() {
-  var c = cleanCfg();
-  localStorage.setItem("dash-config", JSON.stringify(c));
-  if (online) api("config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(c) }).catch(function (e) { toast("Sauvegarde en ligne impossible : " + e.message, true); });
-  render();
-}
+function persistQuiet() { localStorage.setItem("dash-config", JSON.stringify(cleanCfg())); }
+function persist() { persistQuiet(); render(); }
 
 /* =====================================================================
-   ÉDITEUR DE WIDGET
+   ÉDITEUR D'AFFICHAGE
    ===================================================================== */
 function opt(values, sel, blank) {
   return (blank != null ? '<option value="">' + esc(blank) + "</option>" : "") + values.map(function (v) {
@@ -955,46 +890,33 @@ function fieldsOf() {
 function fillDatasets(sel) {
   var s = sources[$("f_source").value], ds = Object.keys((s && s.datasets) || {});
   if (sel && ds.indexOf(sel) < 0) ds.push(sel);
-  $("f_dataset").innerHTML = ds.length ? opt(ds, sel) : '<option value="">Aucune donnée chargée</option>';
+  $("f_dataset").innerHTML = ds.length ? opt(ds, sel) : '<option value="">Pas encore chargé</option>';
   fillFields();
 }
 function fillFields() {
   var f = fieldsOf(), w = editing || {}, wf = w.where ? Object.keys(w.where)[0] : "", hf = w.highlight ? Object.keys(w.highlight)[0] : "";
-  $("f_field").innerHTML = opt(f, w.field, "—");
-  $("f_group").innerHTML = opt(f, w.group);
-  $("f_wf").innerHTML = opt(f, wf, "(toutes les lignes)");
-  $("f_hf").innerHTML = opt(f, hf, "(jamais)");
-  $("f_l1").innerHTML = opt(f, w.line1 || (f.indexOf("subject") >= 0 ? "subject" : f[0]));
-  $("f_l2").innerHTML = opt(f, w.line2 || (f.indexOf("from") >= 0 ? "from" : f[1]), "—");
-  $("f_l3").innerHTML = opt(f, w.meta || (f.indexOf("date") >= 0 ? "date" : ""), "—");
-  $("f_cols").innerHTML = f.map(function (c) {
-    var on = !w.columns || w.columns.indexOf(c) >= 0;
-    return '<label><input type="checkbox" value="' + esc(c) + '"' + (on ? " checked" : "") + ">" + esc(c) + "</label>";
-  }).join("") || '<p class="hint">Les colonnes apparaîtront dès que la source aura chargé des données.</p>';
+  $("f_field").innerHTML = opt(f, w.field, "—"); $("f_group").innerHTML = opt(f, w.group);
+  $("f_wf").innerHTML = opt(f, wf, "(toutes les lignes)"); $("f_hf").innerHTML = opt(f, hf, "(jamais)");
+  $("f_l1").innerHTML = opt(f, w.line1 || f[0]); $("f_l2").innerHTML = opt(f, w.line2 || f[1], "—"); $("f_l3").innerHTML = opt(f, w.meta || "", "—");
+  $("f_cols").innerHTML = f.map(function (c) { return '<label><input type="checkbox" value="' + esc(c) + '"' + (!w.columns || w.columns.indexOf(c) >= 0 ? " checked" : "") + ">" + esc(c) + "</label>"; }).join("") ||
+    '<p class="hint">Les colonnes apparaîtront dès que les données seront chargées.</p>';
 }
-function syncForm(t) {
-  document.querySelectorAll("#dlgW [data-for]").forEach(function (el) { el.style.display = el.dataset.for.split(" ").indexOf(t) >= 0 ? "" : "none"; });
-}
+function syncForm(t) { document.querySelectorAll("#dlgW [data-for]").forEach(function (el) { el.style.display = el.dataset.for.split(" ").indexOf(t) >= 0 ? "" : "none"; }); }
 function openEditor(id) {
-  editing = id ? cfg.widgets.filter(function (w) { return w.id === id; })[0] : null;
-  var w = editing || { type: "kpi", op: "count" };
-  $("wTitle").textContent = editing ? "Modifier le widget" : "Nouveau widget";
-  ["wDel", "wUp", "wDown"].forEach(function (b) { $(b).style.display = editing ? "" : "none"; });
+  editing = cfg.widgets.filter(function (w) { return w.id === id; })[0]; if (!editing) return;
+  var w = editing;
   $("f_title").value = w.title || "";
-  seg("f_typeSeg", w.type, syncForm);
-  seg("f_sizeSeg", w.size || "");
+  seg("f_typeSeg", w.type, syncForm); seg("f_sizeSeg", w.size || "");
   $("f_op").value = w.op || "count";
-  $("f_source").innerHTML = opt(cfg.sources.map(function (s) { return [s.id, s.name + (s.enabled === false ? " (désactivée)" : "")]; }), w.source || Object.keys(sources)[0]);
+  $("f_source").innerHTML = opt(cfg.sources.map(function (s) { return [s.id, s.name]; }), w.source);
   fillDatasets(w.dataset);
-  $("f_wv").value = w.where ? w.where[Object.keys(w.where)[0]] : "";
-  $("f_hv").value = w.highlight ? w.highlight[Object.keys(w.highlight)[0]] : "";
-  $("f_alert").value = w.alert_above != null ? w.alert_above : "";
-  $("f_limit").value = w.limit || "";
+  $("f_wv").value = w.where ? w.where[Object.keys(w.where)[0]] : ""; $("f_hv").value = w.highlight ? w.highlight[Object.keys(w.highlight)[0]] : "";
+  $("f_alert").value = w.alert_above != null ? w.alert_above : ""; $("f_limit").value = w.limit || "";
   syncForm(w.type); dlgW.showModal();
 }
-function saveWidget() {
+function readWidget(id) {
   var t = segVal("f_typeSeg") || "kpi";
-  var w = { id: editing ? editing.id : "w" + Date.now(), title: $("f_title").value.trim() || "Sans titre", type: t, source: $("f_source").value, dataset: $("f_dataset").value };
+  var w = { id: id, title: $("f_title").value.trim() || "Sans titre", type: t, source: $("f_source").value, dataset: $("f_dataset").value };
   if (segVal("f_sizeSeg")) w.size = segVal("f_sizeSeg");
   if ($("f_wf").value && $("f_wv").value !== "") { w.where = {}; w.where[$("f_wf").value] = $("f_wv").value; }
   if (t === "kpi" || t === "bar") { w.op = $("f_op").value; if ($("f_field").value) w.field = $("f_field").value; }
@@ -1006,135 +928,76 @@ function saveWidget() {
   }
   if (t === "list") { w.line1 = $("f_l1").value; w.line2 = $("f_l2").value; w.meta = $("f_l3").value; }
   if ((t === "table" || t === "list") && $("f_limit").value) w.limit = parseInt($("f_limit").value, 10);
-  if (editing) cfg.widgets[cfg.widgets.indexOf(editing)] = w; else cfg.widgets.push(w);
-  dlgW.close(); persist(); toast(editing ? "Widget enregistré" : "Widget ajouté");
+  return w;
 }
-function delWidget() { if (!confirm("Supprimer ce widget ?")) return; cfg.widgets.splice(cfg.widgets.indexOf(editing), 1); dlgW.close(); persist(); toast("Widget supprimé"); }
-function moveWidget(d) {
-  var i = cfg.widgets.indexOf(editing), j = i + d;
-  if (j < 0 || j >= cfg.widgets.length) return;
-  cfg.widgets.splice(i, 1); cfg.widgets.splice(j, 0, editing); persist();
-}
+function saveWidget() { cfg.widgets[cfg.widgets.indexOf(editing)] = readWidget(editing.id); dlgW.close(); persist(); toast("Enregistré"); }
+function dupWidget() { var w = readWidget("w" + Date.now()); w.title += " (copie)"; cfg.widgets.splice(cfg.widgets.indexOf(editing) + 1, 0, w); dlgW.close(); persist(); toast("Bloc dupliqué : modifie-le avec le crayon"); }
+function delWidget() { if (!confirm("Supprimer ce bloc ?")) return; cfg.widgets.splice(cfg.widgets.indexOf(editing), 1); dlgW.close(); persist(); }
+function moveWidget(d) { var i = cfg.widgets.indexOf(editing), j = i + d; if (j < 0 || j >= cfg.widgets.length) return; cfg.widgets.splice(i, 1); cfg.widgets.splice(j, 0, editing); persist(); }
 
 /* =====================================================================
-   RÉGLAGES + SOURCES
+   RÉGLAGES
    ===================================================================== */
 function openSettings() {
   $("s_title").value = cfg.title || "";
   seg("s_themeSeg", cfg.theme || "", function (v) { cfg.theme = v; applyTheme(); });
-  $("s_client").value = cfg.microsoft.clientId || "";
-  var t = tenantValue(), preset = ["organizations", "consumers", "common"].indexOf(t) >= 0;
-  $("s_tenant").value = preset ? t : "custom";
-  $("s_tenantId").value = preset ? "" : t;
-  $("s_tenantId").style.display = preset ? "none" : "";
-  $("s_redirect1").textContent = BASE + "auth.html";
-  $("s_redirect2").textContent = BASE;
-  $("s_webhook").textContent = BASE + ".netlify/functions/qargo-webhook";
-  $("s_qargoOn").style.display = online ? "" : "none"; $("s_qargoOff").style.display = online ? "none" : "";
-  $("s_newType").innerHTML = opt(Object.keys(TYPES).filter(function (k) { return online || k.indexOf("qargo") !== 0; }).map(function (k) { return [k, TYPES[k].label]; }));
-  listSources(); dlgS.showModal(); renderDiag();
-}
-$("s_tenant").onchange = function () { $("s_tenantId").style.display = this.value === "custom" ? "" : "none"; };
-$("s_client").oninput = renderDiag;
-function listSources() {
-  $("s_list").innerHTML = cfg.sources.map(function (s, i) {
-    var st = sources[s.id], err = st && st.error;
-    return '<div class="src-row' + (s.enabled === false ? " off" : "") + '"><span class="led" style="' + (err ? "background:var(--bad)" : "") + '"></span><div><b>' + esc(s.name) + "</b><small>" +
-      esc(TYPES[s.type] ? TYPES[s.type].label : s.type) + (s.enabled === false ? " — désactivée" : err ? " — " + esc(err) : "") + '</small></div><button class="btn sm" onclick="editSource(' + i + ')">Modifier</button></div>';
-  }).join("");
-}
-function msToggle() {
-  readMsForm();
-  if (msAccount && msApp) {
-    msApp.logoutPopup({ account: msAccount, postLogoutRedirectUri: BASE + "auth.html", mainWindowRedirectUri: BASE }).catch(function () {});
-    msAccount = null; renderDiag(); return;
-  }
-  persist();
-  msInit().then(msLogin).then(renderDiag);
+  var name = account ? (account.name || account.username) : "";
+  $("s_who").innerHTML = account ? '<span class="avatar">' + esc(name.split(/\s+/).map(function (p) { return p[0]; }).join("").slice(0, 2).toUpperCase()) + "</span><span><b>" + esc(name) + '</b><small class="hint" style="display:block;margin:0">' + esc(account.username) + "</small></span>" : '<span class="hint" style="margin:0">Non connecté</span>';
+  $("s_msBtn").textContent = account ? "Se déconnecter" : "Se connecter";
+  $("s_msBtn").onclick = function () { dlgS.close(); if (account) logout(); else login(); };
+  $("s_err").innerHTML = errBox(lastError);
+  $("s_list").innerHTML = cfg.sources.length ? cfg.sources.map(function (s, i) {
+    var st = sources[s.id] || {};
+    return '<div class="src-row"><span class="led" style="' + (st.error ? "background:var(--bad)" : "") + '"></span><div><b>' + esc(s.name) + "</b><small>" + (s.kind === "mail" ? "Mails" : "Excel") +
+      (st.error ? " — " + esc(st.error) : ", actualisé toutes les " + esc(s.interval) + " s") + '</small></div><button class="btn sm" onclick="editSource(' + i + ')">Modifier</button></div>';
+  }).join("") : '<p class="hint">Rien pour l\'instant.</p>';
+  dlgS.showModal();
 }
 function saveSettings() {
-  var before = JSON.stringify(cfg.microsoft);
-  cfg.title = $("s_title").value.trim() || "Dashboard Ops";
-  cfg.theme = segVal("s_themeSeg");
-  readMsForm();
-  document.title = cfg.title; $("appTitle").textContent = cfg.title; applyTheme();
-  dlgS.close(); persist(); toast("Réglages enregistrés");
-  (before !== JSON.stringify(cfg.microsoft) ? msInit() : Promise.resolve()).then(startAll);
+  cfg.title = $("s_title").value.trim() || "Dashboard Ops"; cfg.theme = segVal("s_themeSeg");
+  document.title = cfg.title; $("appTitle").textContent = cfg.title; applyTheme(); dlgS.close(); persist();
 }
 function editSource(i) {
-  editingSrc = i == null ? { id: "s" + Date.now(), type: $("s_newType").value, name: TYPES[$("s_newType").value].label.split(" (")[0], interval: 60, _new: true } : cfg.sources[i];
-  var s = editingSrc, T = TYPES[s.type] || { fields: [] }, h = "<fieldset>";
-  $("srcTitle").textContent = T.label || s.type;
+  editingSrc = cfg.sources[i]; var s = editingSrc, h = "<fieldset>";
+  $("srcTitle").textContent = s.name;
   h += '<label for="sf_name">Nom</label><input id="sf_name" value="' + esc(s.name) + '">';
-  h += '<div class="row"><div><label for="sf_interval">Actualiser toutes les (secondes)</label><input id="sf_interval" type="number" min="5" value="' + esc(s.interval || 60) + '"></div>';
-  h += '<div><label class="check" style="margin-top:34px"><input type="checkbox" id="sf_enabled"' + (s.enabled === false ? "" : " checked") + "> Activée</label></div></div>";
-  T.fields.forEach(function (f) {
-    var v = s[f.k] != null ? s[f.k] : (f.d != null ? f.d : "");
-    h += '<label for="sf_' + f.k + '">' + esc(f.l) + "</label>";
-    if (f.json) h += '<textarea id="sf_' + f.k + '" spellcheck="false">' + esc(JSON.stringify(v || [], null, 2)) + "</textarea>";
-    else h += '<input id="sf_' + f.k + '"' + (f.n ? ' type="number"' : "") + ' value="' + esc(v) + '">';
-    if (f.h) h += '<p class="hint">' + esc(f.h) + "</p>";
-  });
-  if (s.type === "excel_local") h += '<div class="row" style="margin-top:14px;align-items:center"><button class="btn" onclick="pickFile(\'' + esc(s.id) + '\')" style="flex:0 0 auto">Choisir le fichier…</button><span class="hint" id="pickedName" style="margin:0"></span></div>';
-  if (T.ms) h += '<p class="hint">Utilise le compte Microsoft connecté dans les réglages.</p>';
-  if (T.note) h += '<p class="hint">' + esc(T.note) + "</p>";
-  if (T.minInterval) h += '<p class="hint">Minimum ' + T.minInterval + " secondes (limites de l'API Qargo).</p>";
-  $("srcForm").innerHTML = h + "</fieldset>";
-  $("srcDel").style.display = s._new ? "none" : "";
-  if (s.type === "excel_local") getHandle(s.id).then(function (hd) { if (hd) $("pickedName").textContent = hd.name; });
-  dlgSrc.showModal();
+  h += '<label for="sf_interval">Actualiser toutes les (secondes)</label><input id="sf_interval" type="number" min="15" value="' + esc(s.interval || 60) + '">';
+  if (s.kind === "mail") {
+    h += '<div class="row"><div><label for="sf_from">Expéditeur contient</label><input id="sf_from" value="' + esc(s.from || "") + '"></div><div><label for="sf_subject">Objet contient</label><input id="sf_subject" value="' + esc(s.subject || "") + '"></div></div>';
+    h += '<label class="check"><input type="checkbox" id="sf_unread"' + (s.unread ? " checked" : "") + "> Seulement les non lus</label>";
+  } else {
+    h += '<label for="sf_header">Ligne des en-têtes</label><input id="sf_header" type="number" min="1" value="' + esc(s.headerRow || 1) + '">';
+  }
+  h += '<label for="sf_rules">Extraire des valeurs du texte (avancé, facultatif)</label><textarea id="sf_rules" spellcheck="false">' + esc(JSON.stringify(s.rules || [], null, 2)) + "</textarea>";
+  h += '<p class="hint">Exemple : <code>[{"name": "Retards", "match": {"Objet": "retard"}, "extract": {"camion": "camion\\\\s*:?\\\\s*([A-Z0-9-]+)", "minutes": "(\\\\d+)\\\\s*min"}}]</code> crée une liste « Retards » avec les colonnes camion et minutes.</p>';
+  $("srcForm").innerHTML = h + "</fieldset>"; dlgS.close(); dlgSrc.showModal();
 }
 function saveSource() {
-  var s = editingSrc, T = TYPES[s.type] || { fields: [] };
-  s.name = $("sf_name").value.trim() || T.label;
-  s.interval = Math.max(T.minInterval || 5, parseInt($("sf_interval").value || 60, 10));
-  if ($("sf_enabled").checked) delete s.enabled; else s.enabled = false;
-  for (var i = 0; i < T.fields.length; i++) {
-    var f = T.fields[i], v = $("sf_" + f.k).value;
-    if (f.json) { try { v = JSON.parse(v || "[]"); } catch (e) { toast("Règles illisibles : " + e.message, true); return; } }
-    else if (f.n) v = v === "" ? f.d : parseInt(v, 10);
-    if (v === "" || v == null) delete s[f.k]; else s[f.k] = v;
-  }
-  var isNew = s._new;
-  if (isNew) { delete s._new; cfg.sources.push(s); }
-  dlgSrc.close(); listSources(); persist(); startAll(); toast(isNew ? "Source ajoutée" : "Source enregistrée");
+  var s = editingSrc, rules;
+  try { rules = JSON.parse($("sf_rules").value || "[]"); if (!Array.isArray(rules)) throw new Error("une liste [ ... ] est attendue"); } catch (e) { toast("Règles illisibles : " + e.message, true); return; }
+  s.name = $("sf_name").value.trim() || s.name; s.interval = Math.max(15, parseInt($("sf_interval").value || 60, 10)); s.rules = rules;
+  if (s.kind === "mail") { s.from = $("sf_from").value.trim(); s.subject = $("sf_subject").value.trim(); s.unread = $("sf_unread").checked; }
+  else s.headerRow = Math.max(1, parseInt($("sf_header").value || 1, 10));
+  if (sources[s.id]) sources[s.id].etag = null;
+  dlgSrc.close(); persist(); startAll(); toast("Enregistré");
 }
 function delSource() {
-  if (!confirm("Supprimer cette source ? Les widgets qui l'utilisent resteront vides.")) return;
-  cfg.sources.splice(cfg.sources.indexOf(editingSrc), 1); dlgSrc.close(); listSources(); persist(); startAll(); toast("Source supprimée");
+  if (!confirm("Retirer cette source et ses blocs ?")) return;
+  var id = editingSrc.id;
+  cfg.sources = cfg.sources.filter(function (s) { return s.id !== id; });
+  cfg.widgets = cfg.widgets.filter(function (w) { return w.source !== id; });
+  dlgSrc.close(); persist(); startAll();
 }
-
-/* Qargo (version Netlify) */
-function simulateQargo() {
-  var C = ["Chaussea", "Nike", "H&M", "INDITEX", "ZEB"], L = ["TML Ghlin", "TML Hornu", "Lille DC", "Anvers Port", "Liège Airport"], ev = [], rnd = function (a) { return a[Math.floor(Math.random() * a.length)]; };
-  for (var i = 0; i < 8; i++) {
-    var order = "ORD-" + (10000 + Math.floor(Math.random() * 89999)), plate = "1-" + rnd(["ABC", "TML", "XYZ"]) + "-" + (100 + Math.floor(Math.random() * 899)), client = rnd(C), t = new Date().toISOString();
-    ev.push({ event_type: "ORDER_STATUS", status: "ACCEPTED", event_time: t, order: { order_number: order, customer: { name: client } } });
-    ev.push({ event_type: "POSITION", event_time: t, resource: { license_plate: plate, driver_name: "Chauffeur " + i }, position: { latitude: +(50.4 + Math.random()).toFixed(5), longitude: +(3.8 + Math.random()).toFixed(5) } });
-    ev.push({ event_type: "STOP_STATUS", status: rnd(["AT_STOP", "COMPLETED"]), event_time: t, eta_start: new Date(Date.now() + Math.random() * 7200e3).toISOString(),
-              order: { order_number: order, customer: { name: client } }, stop: { stop_id: "S" + order, location: { name: rnd(L) }, activity: rnd(["PICKUP", "DELIVERY"]) }, resource: { license_plate: plate } });
-  }
-  api("qargo-webhook", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) })
-    .then(function (d) { toast(d.events + " événements de test envoyés"); var q = cfg.sources.filter(function (s) { return s.type === "qargo"; })[0]; if (q) tick(q); })
-    .catch(function (e) { toast(e.message, true); });
-}
-function showRaw() {
-  api("qargo-data?raw=1").then(function (d) { $("rawPre").textContent = (d.raw && d.raw.length) ? JSON.stringify(d.raw, null, 2) : "Aucun événement reçu pour l'instant."; dlgRaw.showModal(); })
-    .catch(function (e) { toast(e.message, true); });
-}
-
-/* Import / export */
 function exportCfg() {
   var a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(cleanCfg(), null, 2)], { type: "application/json" }));
-  a.download = "dashboard-config.json"; a.click(); toast("Configuration exportée");
+  a.download = "dashboard-config.json"; a.click(); toast("Exporté");
 }
 function importCfg(input) {
   var f = input.files[0]; if (!f) return;
   f.text().then(function (t) {
-    var c = JSON.parse(t);
-    if (!Array.isArray(c.sources) || !Array.isArray(c.widgets)) throw new Error("fichier non reconnu");
-    cfg = Object.assign({}, DEFAULT_CONFIG, c); persist(); dlgS.close(); applyTheme(); msInit().then(startAll); toast("Configuration importée");
+    var c = JSON.parse(t); if (!Array.isArray(c.sources) || !Array.isArray(c.widgets)) throw new Error("fichier non reconnu");
+    cfg = Object.assign({}, DEFAULT_CONFIG, c); persist(); dlgS.close(); applyTheme(); msInit().then(startAll); toast("Importé");
   }).catch(function (e) { toast("Import impossible : " + e.message, true); });
   input.value = "";
 }
@@ -1142,42 +1005,14 @@ function importCfg(input) {
 /* =====================================================================
    DÉMARRAGE
    ===================================================================== */
-function askKey(msg) { $("keyErr").textContent = msg || ""; if (!dlgKey.open) dlgKey.showModal(); }
-function saveKey() { localStorage.setItem("dash-key", $("keyInput").value.trim()); dlgKey.close(); boot(); }
-function staticDefault() {
-  var c = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-  c.sources = c.sources.filter(function (s) { return s.type.indexOf("qargo") !== 0; });
-  c.widgets = c.widgets.filter(function (w) { return w.source !== "qargo"; });
-  return c;
-}
-function boot() {
-  var local = null;
-  try { local = JSON.parse(localStorage.getItem("dash-config")); } catch (e) {}
-  var loaded = location.protocol === "file:" ? Promise.reject(new Error("local")) :
-    !localStorage.getItem("dash-key") ? fetch(BASE + ".netlify/functions/config").then(function (r) {
-      if (r.status === 404) throw new Error("local");
-      if (r.status === 500) return r.json().then(function (d) { serverError = d.error; throw new Error("local"); });
-      askKey(); throw new Error("cle");
-    }) : api("config");
-  loaded.then(function (d) {
-    online = true;
-    cfg = d.config || local || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    if (!d.config) persist();
-    go();
-  }).catch(function (e) {
-    if (e.message === "cle" || e.message === "Clé d'accès invalide") return;
-    online = false;
-    cfg = local || staticDefault();
-    go();
-  });
-}
-function go() {
-  cfg.microsoft = cfg.microsoft || { clientId: "", tenantId: "organizations" };
+(function boot() {
+  try { cfg = JSON.parse(localStorage.getItem("dash-config")); } catch (e) {}
+  if (!cfg || !Array.isArray(cfg.sources) || cfg.version !== 2) cfg = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  cfg.version = 2;
   document.title = cfg.title || "Dashboard Ops"; $("appTitle").textContent = document.title;
-  applyTheme(); refreshBanner(); render();
-  msInit().then(function () { refreshBanner(); startAll(); });
-}
-window.addEventListener("load", boot);
+  applyTheme(); render();
+  msInit().then(function () { render(); startAll(); });
+})();
 </script>
 </body>
 </html>
